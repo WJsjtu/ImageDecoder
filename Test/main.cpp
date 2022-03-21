@@ -283,7 +283,7 @@ void main()\n\
         auto currentFrameTime = glfwContext->device->GetElapsedTime();
         if ((currentFrameTime - prevFrameTime) > 1.0 || frames == 0) {
             float fps = (float)(int)((double)frames / (currentFrameTime - prevFrameTime) * 10) / 10.f;
-            glfwContext->window->SetTitle("Camera App (" + std::to_string(fps) + " FPS)");
+            glfwContext->window->SetTitle("Image App (" + std::to_string(fps) + " FPS)");
             prevFrameTime = currentFrameTime;
             frames = 0;
         }

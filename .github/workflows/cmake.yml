@@ -6,7 +6,7 @@ on:
       - '*'
 
 jobs:
-  build-macos-cocoa-clang:
+  build-macos-cocoa-clang-x86_64:
     name: Cocoa (macOS, Clang)
     # The CMake configure and build commands are platform agnostic and should work equally
     # well on Windows or Mac.  You can convert this to a matrix build if you need
@@ -19,28 +19,69 @@ jobs:
       - uses: actions/checkout@master
 
       - name: Configure CMake Shared Debug
-        run: cmake -B ${{github.workspace}}/Build/Shared/Debug -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/Debug
+        run: cmake -B ${{github.workspace}}/Build/Shared/Debug -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/Debug -DCMAKE_OSX_ARCHITECTURES=x86_64
       - name: Build Debug
         run: cmake --build ${{github.workspace}}/Build/Shared/Debug --config DEBUG --target install
         
       - name: Configure CMake Shared MinSizeRel
-        run: cmake -B ${{github.workspace}}/Build/Shared/MinSizeRel -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/MinSizeRel
+        run: cmake -B ${{github.workspace}}/Build/Shared/MinSizeRel -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/MinSizeRel -DCMAKE_OSX_ARCHITECTURES=x86_64
       - name: Build MinSizeRel
         run: cmake --build ${{github.workspace}}/Build/Shared/MinSizeRel --config MINSIZEREL --target install
 
       - name: Configure CMake Static Debug
-        run: cmake -B ${{github.workspace}}/Build/Static/Debug -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/Debug
+        run: cmake -B ${{github.workspace}}/Build/Static/Debug -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/Debug -DCMAKE_OSX_ARCHITECTURES=x86_64
       - name: Build Debug
         run: cmake --build ${{github.workspace}}/Build/Static/Debug --config DEBUG --target install
         
       - name: Configure CMake Static MinSizeRel
-        run: cmake -B ${{github.workspace}}/Build/Static/MinSizeRel -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/MinSizeRel
+        run: cmake -B ${{github.workspace}}/Build/Static/MinSizeRel -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/MinSizeRel -DCMAKE_OSX_ARCHITECTURES=x86_64
       - name: Build MinSizeRel
         run: cmake --build ${{github.workspace}}/Build/Static/MinSizeRel --config MINSIZEREL --target install
 
       - uses: actions/upload-artifact@master
         with:
-          name: darwin
+          name: darwin-x86_64
+          path: |
+            ${{github.workspace}}/Install/shared/Debug
+            ${{github.workspace}}/Install/shared/MinSizeRel
+            ${{github.workspace}}/Install/static/Debug
+            ${{github.workspace}}/Install/static/MinSizeRel
+  
+  build-macos-cocoa-clang-arm64:
+    name: Cocoa (macOS, Clang)
+    # The CMake configure and build commands are platform agnostic and should work equally
+    # well on Windows or Mac.  You can convert this to a matrix build if you need
+    # cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    runs-on:  macos-latest
+    env:
+      MACOSX_DEPLOYMENT_TARGET: 10.9
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Configure CMake Shared Debug
+        run: cmake -B ${{github.workspace}}/Build/Shared/Debug -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/Debug -DCMAKE_OSX_ARCHITECTURES=arm64
+      - name: Build Debug
+        run: cmake --build ${{github.workspace}}/Build/Shared/Debug --config DEBUG --target install
+        
+      - name: Configure CMake Shared MinSizeRel
+        run: cmake -B ${{github.workspace}}/Build/Shared/MinSizeRel -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/MinSizeRel -DCMAKE_OSX_ARCHITECTURES=arm64
+      - name: Build MinSizeRel
+        run: cmake --build ${{github.workspace}}/Build/Shared/MinSizeRel --config MINSIZEREL --target install
+
+      - name: Configure CMake Static Debug
+        run: cmake -B ${{github.workspace}}/Build/Static/Debug -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/Debug -DCMAKE_OSX_ARCHITECTURES=arm64
+      - name: Build Debug
+        run: cmake --build ${{github.workspace}}/Build/Static/Debug --config DEBUG --target install
+        
+      - name: Configure CMake Static MinSizeRel
+        run: cmake -B ${{github.workspace}}/Build/Static/MinSizeRel -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/MinSizeRel -DCMAKE_OSX_ARCHITECTURES=arm64
+      - name: Build MinSizeRel
+        run: cmake --build ${{github.workspace}}/Build/Static/MinSizeRel --config MINSIZEREL --target install
+
+      - uses: actions/upload-artifact@master
+        with:
+          name: darwin-arm64
           path: |
             ${{github.workspace}}/Install/shared/Debug
             ${{github.workspace}}/Install/shared/MinSizeRel
@@ -126,8 +167,13 @@ jobs:
 
       - uses: actions/download-artifact@master
         with:
-          name: darwin
-          path: ${{github.workspace}}/release/darwin
+          name: darwin-x86_64
+          path: ${{github.workspace}}/release/darwin/x86_64
+
+      - uses: actions/download-artifact@master
+        with:
+          name: darwin-arm64
+          path: ${{github.workspace}}/release/darwin/arm64
 
       - uses: actions/download-artifact@master
         with:
