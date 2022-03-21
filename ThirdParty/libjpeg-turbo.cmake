@@ -1,13 +1,14 @@
-﻿UpdateExternalLib("libjpeg-turbo" https://github.com/libjpeg-turbo/libjpeg-turbo.git "2.1.0")
+﻿git_clone("ThirdParty/libjpeg-turbo" https://github.com/libjpeg-turbo/libjpeg-turbo.git "2.1.0")
 
 if (WIN32)
   set(CMAKE_ASM_NASM_COMPILER "${PROJECT_SOURCE_DIR}/Tools/nasm-2.15.05-win64/nasm.exe")
 elseif(APPLE)
+  execute_process(COMMAND chmod -R 777 "${PROJECT_SOURCE_DIR}/Tools")
   set(CMAKE_ASM_NASM_COMPILER "${PROJECT_SOURCE_DIR}/Tools/nasm-2.15.05-macosx/nasm")
 endif()
 
-set(LIBJPEG_TURBO_INSTALL_DIR ${CMAKE_BINARY_DIR}/libjpeg-turbo-install)
-set(LIBJPEG_TURBO_SOURCE_DIR ${PROJECT_SOURCE_DIR}/ThirdParty/libjpeg-turbo)
+set(LIBJPEG_TURBO_INSTALL_DIR "${PROJECT_SOURCE_DIR}/ThirdParty/install/${CMAKE_BUILD_TYPE}/libjpeg-turbo")
+set(LIBJPEG_TURBO_SOURCE_DIR "${PROJECT_SOURCE_DIR}/ThirdParty/libjpeg-turbo")
 
 # Set WITH_SIMD
 include(CheckLanguage)
@@ -43,11 +44,11 @@ if(WIN32)
     -DREQUIRE_SIMD=${WITH_SIMD} 
     -DCMAKE_INSTALL_PREFIX=${LIBJPEG_TURBO_INSTALL_DIR} 
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON 
-    -B ${CMAKE_BINARY_DIR}/ExternalProjects/libjpeg-turbo-external 
-    WORKING_DIRECTORY ${LIBJPEG_TURBO_SOURCE_DIR}
+    -B "${PROJECT_SOURCE_DIR}/ThirdParty/build/${CMAKE_BUILD_TYPE}/libjpeg-turbo" 
+    WORKING_DIRECTORY "${LIBJPEG_TURBO_SOURCE_DIR}"
   )
   execute_process(COMMAND ${CMAKE_COMMAND} --build . --config ${CMAKE_BUILD_TYPE} --target install 
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/ExternalProjects/libjpeg-turbo-external
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/ThirdParty/build/${CMAKE_BUILD_TYPE}/libjpeg-turbo"
   )
 else()
   execute_process(COMMAND ${CMAKE_COMMAND} 
@@ -55,7 +56,8 @@ else()
     -A "${CMAKE_GENERATOR_PLATFORM}" 
     -T "${CMAKE_GENERATOR_TOOLSET}" 
     -DCMAKE_MACOSX_RPATH=ON 
-    -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_VERSION}" 
+    -DCMAKE_OSX_DEPLOYMENT_TARGET="${OSX_VERSION}"
+    -DCMAKE_OSX_ARCHITECTURES="${CMAKE_OSX_ARCHITECTURES}" 
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} 
     -DWITH_CRT_DLL=ON 
     -DENABLE_STATIC=ON 
@@ -67,13 +69,13 @@ else()
     -DREQUIRE_SIMD=${WITH_SIMD} 
     -DCMAKE_INSTALL_PREFIX=${LIBJPEG_TURBO_INSTALL_DIR} 
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON 
-    -B ${CMAKE_BINARY_DIR}/ExternalProjects/libjpeg-turbo-external 
-    WORKING_DIRECTORY ${LIBJPEG_TURBO_SOURCE_DIR}
+    -B "${PROJECT_SOURCE_DIR}/ThirdParty/build/${CMAKE_BUILD_TYPE}/libjpeg-turbo" 
+    WORKING_DIRECTORY "${LIBJPEG_TURBO_SOURCE_DIR}"
   )
   execute_process(COMMAND ${CMAKE_COMMAND} --build . --config ${CMAKE_BUILD_TYPE} --target install 
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/ExternalProjects/libjpeg-turbo-external
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/ThirdParty/build/${CMAKE_BUILD_TYPE}/libjpeg-turbo"
   )
 endif()
 
-set(LIBJPEG_TURBO_DIR "${CMAKE_BINARY_DIR}/libjpeg-turbo-install" CACHE PATH "libjpeg-turbo dir" FORCE)
+set(LIBJPEG_TURBO_DIR "${PROJECT_SOURCE_DIR}/ThirdParty/install/${CMAKE_BUILD_TYPE}/libjpeg-turbo" CACHE PATH "libjpeg-turbo dir" FORCE)
 set(LIBJPEG_TURBO_ROOT "${LIBJPEG_TURBO_DIR}" CACHE PATH "libjpeg-turbo root" FORCE)

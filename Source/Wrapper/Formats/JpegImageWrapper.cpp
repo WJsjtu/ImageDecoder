@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "JpegImageWrapper.h"
-#include <assert.h>
+#include "Utils/Utils.h"
 #include <algorithm>
 #include <mutex>
 
@@ -22,19 +22,17 @@
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
-
+namespace ImageDecoder {
 template <class T>
 constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
     return clamp(v, lo, hi, std::less<T>{});
 }
 
 template <class T, class Compare>
-constexpr const T& clamp(const T& v, const T& lo, const T& hi, Compare comp) {
-    assert(!comp(hi, lo));
+const T& clamp(const T& v, const T& lo, const T& hi, Compare comp) {
+    Assert(!comp(hi, lo));
     return comp(v, lo) ? lo : comp(hi, v) ? hi : v;
 }
-
-namespace {
 int ConvertTJpegPixelFormat(ERGBFormat InFormat) {
     switch (InFormat) {
         case ERGBFormat::BGRA: return TJPF_BGRA;
@@ -43,7 +41,6 @@ int ConvertTJpegPixelFormat(ERGBFormat InFormat) {
         default: return TJPF_RGBA;
     }
 }
-}  // namespace
 
 // Only allow one thread to use JPEG decoder at a time (it's not thread safe)
 std::mutex GJPEGSection;
@@ -51,116 +48,117 @@ std::mutex GJPEGSection;
 /* FJpegImageWrapper structors
  *****************************************************************************/
 
-FJpegImageWrapper::FJpegImageWrapper(int InNumComponents) : FImageWrapperBase(), NumComponents(InNumComponents), Compressor(tjInitCompress()), Decompressor(tjInitDecompress()) {}
+FJpegImageWrapper::FJpegImageWrapper(int inNumComponents) : FImageWrapperBase(), numComponents(inNumComponents), compressor(tjInitCompress()), decompressor(tjInitDecompress()) {}
 
 FJpegImageWrapper::~FJpegImageWrapper() {
     std::lock_guard<std::mutex> JPEGLock(GJPEGSection);
 
-    if (Compressor) {
-        tjDestroy(Compressor);
+    if (compressor) {
+        tjDestroy(compressor);
     }
-    if (Decompressor) {
-        tjDestroy(Decompressor);
+    if (decompressor) {
+        tjDestroy(decompressor);
     }
 }
 
 /* FImageWrapperBase interface
  *****************************************************************************/
 
-bool FJpegImageWrapper::SetCompressed(const void* InCompressedData, int64_t InCompressedSize) { return SetCompressedTurbo(InCompressedData, InCompressedSize); }
+bool FJpegImageWrapper::SetCompressed(const void* inCompressedData, int64_t inCompressedSize) { return SetCompressedTurbo(inCompressedData, inCompressedSize); }
 
-bool FJpegImageWrapper::SetRaw(const void* InRawData, int64_t InRawSize, const int InWidth, const int InHeight, const ERGBFormat InFormat, const int InBitDepth) {
-    assert((InFormat == ERGBFormat::RGBA || InFormat == ERGBFormat::BGRA || InFormat == ERGBFormat::Gray) && InBitDepth == 8);
+bool FJpegImageWrapper::SetRaw(const void* inRawData, int64_t inRawSize, const int inWidth, const int inHeight, const ERGBFormat inFormat, const int inBitDepth) {
+    Assert((inFormat == ERGBFormat::RGBA || inFormat == ERGBFormat::BGRA || inFormat == ERGBFormat::Gray) && inBitDepth == 8);
 
-    bool bResult = FImageWrapperBase::SetRaw(InRawData, InRawSize, InWidth, InHeight, InFormat, InBitDepth);
+    bool bResult = FImageWrapperBase::SetRaw(inRawData, inRawSize, inWidth, inHeight, inFormat, inBitDepth);
 
     return bResult;
 }
 
-void FJpegImageWrapper::Compress(int Quality) { CompressTurbo(Quality); }
+void FJpegImageWrapper::Compress(int quality) { CompressTurbo(quality); }
 
-void FJpegImageWrapper::Uncompress(const ERGBFormat InFormat, int InBitDepth) { UncompressTurbo(InFormat, InBitDepth); }
+void FJpegImageWrapper::Uncompress(const ERGBFormat inFormat, int inBitDepth) { UncompressTurbo(inFormat, inBitDepth); }
 
-bool FJpegImageWrapper::SetCompressedTurbo(const void* InCompressedData, int64_t InCompressedSize) {
+bool FJpegImageWrapper::SetCompressedTurbo(const void* inCompressedData, int64_t inCompressedSize) {
     std::lock_guard<std::mutex> JPEGLock(GJPEGSection);
 
-    assert(Decompressor);
+    Assert(decompressor);
 
-    int ImageWidth;
-    int ImageHeight;
-    int SubSampling;
-    int ColorSpace;
-    if (tjDecompressHeader3(Decompressor, reinterpret_cast<const uint8_t*>(InCompressedData), InCompressedSize, &ImageWidth, &ImageHeight, &SubSampling, &ColorSpace) != 0) {
+    int imageWidth;
+    int imageHeight;
+    int subSampling;
+    int colorSpace;
+    if (tjDecompressHeader3(decompressor, reinterpret_cast<const uint8_t*>(inCompressedData), static_cast<unsigned long>(inCompressedSize), &imageWidth, &imageHeight, &subSampling, &colorSpace) != 0) {
         return false;
     }
 
-    const bool bResult = FImageWrapperBase::SetCompressed(InCompressedData, InCompressedSize);
+    const bool bResult = FImageWrapperBase::SetCompressed(inCompressedData, inCompressedSize);
 
     // set after call to base SetCompressed as it will reset members
-    Width = ImageWidth;
-    Height = ImageHeight;
-    BitDepth = 8;  // We don't support 16 bit jpegs
-    Format = SubSampling == TJSAMP_GRAY ? ERGBFormat::Gray : ERGBFormat::RGBA;
+    width = imageWidth;
+    height = imageHeight;
+    bitDepth = 8;  // We don't support 16 bit jpegs
+    format = subSampling == TJSAMP_GRAY ? ERGBFormat::Gray : ERGBFormat::RGBA;
 
     return bResult;
 }
 
-void FJpegImageWrapper::CompressTurbo(int Quality) {
-    if (CompressedData.size() == 0) {
+void FJpegImageWrapper::CompressTurbo(int quality) {
+    if (compressedData.size() == 0) {
         std::lock_guard<std::mutex> JPEGLock(GJPEGSection);
 
-        assert(Compressor);
+        Assert(compressor);
 
-        if (Quality == 0) {
-            Quality = 85;
+        if (quality == 0) {
+            quality = 85;
         }
-        assert(Quality >= 1 && Quality <= 100);
-        Quality = std::min(std::max(Quality, 1), 100);
+        Assert(quality >= 1 && quality <= 100);
+        quality = std::min(std::max(quality, 1), 100);
 
-        assert(RawData.size());
-        assert(Width > 0);
-        assert(Height > 0);
+        Assert(rawData.size());
+        Assert(width > 0);
+        Assert(height > 0);
 
-        CompressedData.resize(RawData.size());
+        compressedData.resize(rawData.size());
 
-        const int PixelFormat = ConvertTJpegPixelFormat(RawFormat);
-        unsigned char* OutBuffer = CompressedData.data();
-        unsigned long OutBufferSize = static_cast<unsigned long>(CompressedData.size());
-        const int Flags = TJFLAG_NOREALLOC | TJFLAG_FASTDCT;
+        const int pixelFormat = ConvertTJpegPixelFormat(rawFormat);
+        unsigned char* outBuffer = compressedData.data();
+        unsigned long outBufferSize = static_cast<unsigned long>(compressedData.size());
+        const int flags = TJFLAG_NOREALLOC | TJFLAG_FASTDCT;
 
-        const bool bSuccess = tjCompress2(Compressor, RawData.data(), Width, 0, Height, PixelFormat, &OutBuffer, &OutBufferSize, TJSAMP_420, Quality, Flags) == 0;
-        assert(bSuccess);
+        const bool bSuccess = tjCompress2(compressor, rawData.data(), width, 0, height, pixelFormat, &outBuffer, &outBufferSize, TJSAMP_420, quality, flags) == 0;
+        Assert(bSuccess);
 
-        CompressedData.resize((int64_t)OutBufferSize);
+        compressedData.resize((int64_t)outBufferSize);
     }
 }
 
-void FJpegImageWrapper::UncompressTurbo(const ERGBFormat InFormat, int InBitDepth) {
+void FJpegImageWrapper::UncompressTurbo(const ERGBFormat inFormat, int inBitDepth) {
     // Ensure we haven't already uncompressed the file.
-    if (RawData.size() != 0) {
+    if (rawData.size() != 0) {
         return;
     }
 
     // Get the number of channels we need to extract
-    int Channels = 0;
-    if ((InFormat == ERGBFormat::RGBA || InFormat == ERGBFormat::BGRA) && InBitDepth == 8) {
-        Channels = 4;
-    } else if (InFormat == ERGBFormat::Gray && InBitDepth == 8) {
-        Channels = 1;
+    int channels = 0;
+    if ((inFormat == ERGBFormat::RGBA || inFormat == ERGBFormat::BGRA) && inBitDepth == 8) {
+        channels = 4;
+    } else if (inFormat == ERGBFormat::Gray && inBitDepth == 8) {
+        channels = 1;
     } else {
-        assert(false);
+        Assert(false);
     }
 
-    std::lock_guard<std::mutex> JPEGLock(GJPEGSection);
+    std::lock_guard<std::mutex> jpegLock(GJPEGSection);
 
-    assert(Decompressor);
-    assert(CompressedData.size());
+    Assert(decompressor);
+    Assert(compressedData.size());
 
-    RawData.resize(Width * Height * Channels);
-    const int PixelFormat = ConvertTJpegPixelFormat(InFormat);
-    const int Flags = TJFLAG_NOREALLOC | TJFLAG_FASTDCT;
+    rawData.resize(width * height * channels);
+    const int pixelFormat = ConvertTJpegPixelFormat(inFormat);
+    const int flags = TJFLAG_NOREALLOC | TJFLAG_FASTDCT;
 
-    if (tjDecompress2(Decompressor, CompressedData.data(), CompressedData.size(), RawData.data(), Width, 0, Height, PixelFormat, Flags) != 0) {
+    if (tjDecompress2(decompressor, compressedData.data(), static_cast<unsigned long>(compressedData.size()), rawData.data(), width, 0, height, pixelFormat, flags) != 0) {
         return;
     }
 }
+}  // namespace ImageDecoder

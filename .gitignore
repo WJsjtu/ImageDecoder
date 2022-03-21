@@ -2,5 +2,11 @@ ThirdParty/libjpeg-turbo
 ThirdParty/libpng
 ThirdParty/openexr
 ThirdParty/zlib
+ThirdParty/glfw
+ThirdParty/glew-cmake
+ThirdParty/build
+ThirdParty/install
 Build
 Install
+.vscode
+.vs

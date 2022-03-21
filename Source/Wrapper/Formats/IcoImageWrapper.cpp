@@ -3,7 +3,7 @@
 #include "Wrapper/BmpImageSupport.h"
 #include "Wrapper/Formats/BmpImageWrapper.h"
 #include "Wrapper/Formats/PngImageWrapper.h"
-
+namespace ImageDecoder {
 #pragma pack(push, 1)
 struct FIconDirEntry {
     uint8_t bWidth;          // Width, in pixels, of the image
@@ -52,72 +52,72 @@ FIcoImageWrapper::FIcoImageWrapper() : FImageWrapperBase() {}
 /* FImageWrapper interface
  *****************************************************************************/
 
-void FIcoImageWrapper::Compress(int Quality) { std::cerr << "ICO compression not supported"; }
+void FIcoImageWrapper::Compress(int quality) { std::cerr << "ICO compression not supported"; }
 
-void FIcoImageWrapper::Uncompress(const ERGBFormat InFormat, const int InBitDepth) {
-    const uint8_t* Buffer = CompressedData.data();
+void FIcoImageWrapper::Uncompress(const ERGBFormat inFormat, const int inBitDepth) {
+    const uint8_t* buffer = compressedData.data();
 
-    if (ImageOffset != 0 && ImageSize != 0) {
-        SubImageWrapper->Uncompress(InFormat, InBitDepth);
+    if (imageOffset != 0 && imageSize != 0) {
+        subImageWrapper->Uncompress(inFormat, inBitDepth);
     }
 }
 
-bool FIcoImageWrapper::SetCompressed(const void* InCompressedData, int64_t InCompressedSize) {
-    bool bResult = FImageWrapperBase::SetCompressed(InCompressedData, InCompressedSize);
+bool FIcoImageWrapper::SetCompressed(const void* inCompressedData, int64_t inCompressedSize) {
+    bool bResult = FImageWrapperBase::SetCompressed(inCompressedData, inCompressedSize);
 
     return bResult && LoadICOHeader();  // Fetch the variables from the header info
 }
 
-bool FIcoImageWrapper::GetRaw(const ERGBFormat InFormat, int InBitDepth, std::vector<uint8_t>& OutRawData) {
-    LastError.clear();
-    Uncompress(InFormat, InBitDepth);
+bool FIcoImageWrapper::GetRaw(const ERGBFormat inFormat, int inBitDepth, Vector<uint8_t>& outRawData) {
+    lastError.clear();
+    Uncompress(inFormat, inBitDepth);
 
-    if (LastError.empty()) {
-        SubImageWrapper->MoveRawData(OutRawData);
+    if (lastError.empty()) {
+        subImageWrapper->MoveRawData(outRawData);
     }
 
-    return LastError.empty();
+    return lastError.empty();
 }
 
 /* FImageWrapper implementation
  *****************************************************************************/
 
 bool FIcoImageWrapper::LoadICOHeader() {
-    const uint8_t* Buffer = CompressedData.data();
+    const uint8_t* buffer = compressedData.data();
 
-    std::shared_ptr<FPngImageWrapper> PngWrapper = std::make_shared<FPngImageWrapper>();
-    std::shared_ptr<FBmpImageWrapper> BmpWrapper = std::make_shared<FBmpImageWrapper>(false, true);
+    std::shared_ptr<FPngImageWrapper> pngWrapper = std::make_shared<FPngImageWrapper>();
+    std::shared_ptr<FBmpImageWrapper> bmpWrapper = std::make_shared<FBmpImageWrapper>(false, true);
 
     bool bFoundImage = false;
-    const FIconDir* IconHeader = (FIconDir*)(Buffer);
+    const FIconDir* iconHeader = (FIconDir*)(buffer);
 
-    if (IconHeader->idReserved == 0 && IconHeader->idType == 1) {
+    if (iconHeader->idReserved == 0 && iconHeader->idType == 1) {
         // use the largest-width 32-bit dir entry we find
-        uint32_t LargestWidth = 0;
-        const FIconDirEntry* IconDirEntry = IconHeader->idEntries;
+        uint32_t largestWidth = 0;
+        const FIconDirEntry* iconDirEntry = iconHeader->idEntries;
 
-        for (int Entry = 0; Entry < (int)IconHeader->idCount; Entry++, IconDirEntry++) {
-            const uint32_t RealWidth = IconDirEntry->bWidth == 0 ? 256 : IconDirEntry->bWidth;
-            if (IconDirEntry->wBitCount == 32 && RealWidth > LargestWidth) {
-                if (PngWrapper->SetCompressed(Buffer + IconDirEntry->dwImageOffset, (int)IconDirEntry->dwBytesInRes)) {
-                    Width = PngWrapper->GetWidth();
-                    Height = PngWrapper->GetHeight();
-                    Format = PngWrapper->GetFormat();
-                    LargestWidth = RealWidth;
+        for (int entry = 0; entry < (int)iconHeader->idCount; entry++, iconDirEntry++) {
+            const uint32_t realWidth = iconDirEntry->bWidth == 0 ? 256 : iconDirEntry->bWidth;
+            if (iconDirEntry->wBitCount == 32 && realWidth > largestWidth) {
+                if (pngWrapper->SetCompressed(buffer + iconDirEntry->dwImageOffset, (int)iconDirEntry->dwBytesInRes)) {
+                    width = pngWrapper->GetWidth();
+                    height = pngWrapper->GetHeight();
+                    format = pngWrapper->GetFormat();
+                    largestWidth = realWidth;
                     bFoundImage = true;
                     bIsPng = true;
-                    ImageOffset = IconDirEntry->dwImageOffset;
-                    ImageSize = IconDirEntry->dwBytesInRes;
-                } else if (BmpWrapper->SetCompressed(Buffer + IconDirEntry->dwImageOffset, (int)IconDirEntry->dwBytesInRes)) {
+                    imageOffset = iconDirEntry->dwImageOffset;
+                    imageSize = iconDirEntry->dwBytesInRes;
+                } else if (bmpWrapper->SetCompressed(buffer + iconDirEntry->dwImageOffset, (int)iconDirEntry->dwBytesInRes)) {
                     // otherwise this should be a BMP icon
-                    Width = BmpWrapper->GetWidth();
-                    Height = BmpWrapper->GetHeight() / 2;  // ICO file spec says to divide by 2 here as height refers to combined image & mask height
-                    Format = BmpWrapper->GetFormat();
-                    LargestWidth = RealWidth;
+                    width = bmpWrapper->GetWidth();
+                    height = bmpWrapper->GetHeight() / 2;  // ICO file spec says to divide by 2 here as height refers to combined image & mask height
+                    format = bmpWrapper->GetFormat();
+                    largestWidth = realWidth;
                     bFoundImage = true;
                     bIsPng = false;
-                    ImageOffset = IconDirEntry->dwImageOffset;
-                    ImageSize = IconDirEntry->dwBytesInRes;
+                    imageOffset = iconDirEntry->dwImageOffset;
+                    imageSize = iconDirEntry->dwBytesInRes;
                 }
             }
         }
@@ -125,11 +125,12 @@ bool FIcoImageWrapper::LoadICOHeader() {
 
     if (bFoundImage) {
         if (bIsPng) {
-            SubImageWrapper = PngWrapper;
+            subImageWrapper = pngWrapper;
         } else {
-            SubImageWrapper = BmpWrapper;
+            subImageWrapper = bmpWrapper;
         }
     }
 
     return bFoundImage;
 }
+}  // namespace ImageDecoder

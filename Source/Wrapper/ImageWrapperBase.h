@@ -2,9 +2,9 @@
 
 #include <iostream>
 #include <string>
-#include <vector>
-#include "IImageWrapper.h"
+#include "Decoder.h"
 
+namespace ImageDecoder {
 /**
  * The abstract helper class for handling the different image formats
  */
@@ -19,14 +19,14 @@ public:
      *
      * @return A read-only byte array containing the data.
      */
-    const std::vector<uint8_t>& GetRawData() const { return RawData; }
+    const Vector<uint8_t>& GetRawData() const { return rawData; }
 
     /**
      * Moves the image's raw data into the provided array.
      *
      * @param OutRawData The destination array.
      */
-    void MoveRawData(std::vector<uint8_t>& OutRawData) { OutRawData = std::move(RawData); }
+    void MoveRawData(Vector<uint8_t>& outRawData) { outRawData = std::move(rawData); }
 
 public:
     /**
@@ -34,7 +34,7 @@ public:
      *
      * @param Quality The compression quality.
      */
-    virtual void Compress(int Quality) = 0;
+    virtual void Compress(int quality) = 0;
 
     /**
      * Resets the local variables.
@@ -46,61 +46,62 @@ public:
      *
      * @param ErrorMessage The error message to set.
      */
-    virtual void SetError(const char* ErrorMessage);
+    virtual void SetError(const char* errorMessage);
 
     /**
      * Function to uncompress our data
      *
      * @param InFormat How we want to manipulate the RGB data
      */
-    virtual void Uncompress(const ERGBFormat InFormat, int InBitDepth) = 0;
+    virtual void Uncompress(const ERGBFormat inFormat, int inBitDepth) = 0;
 
 public:
     //~ IImageWrapper interface
 
-    virtual const std::vector<uint8_t>& GetCompressed(int Quality = 0) override;
+    virtual const Vector<uint8_t>& GetCompressed(int quality = 0) override;
 
-    virtual int GetBitDepth() const override { return BitDepth; }
+    virtual int GetBitDepth() const override { return bitDepth; }
 
-    virtual ERGBFormat GetFormat() const override { return Format; }
+    virtual ERGBFormat GetFormat() const override { return format; }
 
-    virtual int GetHeight() const override { return Height; }
+    virtual int GetHeight() const override { return height; }
 
-    virtual bool GetRaw(const ERGBFormat InFormat, int InBitDepth, std::vector<uint8_t>& OutRawData) override;
+    virtual bool GetRaw(const ERGBFormat inFormat, int inBitDepth, Vector<uint8_t>& outRawData) override;
 
-    virtual int GetWidth() const override { return Width; }
+    virtual int GetWidth() const override { return width; }
 
-    virtual int GetNumFrames() const override { return NumFrames; }
+    virtual int GetNumFrames() const override { return numFrames; }
 
-    virtual int GetFramerate() const override { return Framerate; }
+    virtual int GetFramerate() const override { return framerate; }
 
-    virtual bool SetCompressed(const void* InCompressedData, int64_t InCompressedSize) override;
-    virtual bool SetRaw(const void* InRawData, int64_t InRawSize, const int InWidth, const int InHeight, const ERGBFormat InFormat, const int InBitDepth) override;
-    virtual bool SetAnimationInfo(int InNumFrames, int InFramerate) override;
+    virtual bool SetCompressed(const void* inCompressedData, int64_t inCompressedSize) override;
+    virtual bool SetRaw(const void* inRawData, int64_t inRawSize, const int inWidth, const int inHeight, const ERGBFormat inFormat, const int inBitDepth) override;
+    virtual bool SetAnimationInfo(int inNumFrames, int inFramerate) override;
 
 protected:
     /** Arrays of compressed/raw data */
-    std::vector<uint8_t> RawData;
-    std::vector<uint8_t> CompressedData;
+    Vector<uint8_t> rawData;
+    Vector<uint8_t> compressedData;
 
     /** Format of the raw data */
-    ERGBFormat RawFormat;
-    uint8_t RawBitDepth;
+    ERGBFormat rawFormat;
+    uint8_t rawBitDepth;
 
     /** Format of the image */
-    ERGBFormat Format;
+    ERGBFormat format;
 
     /** Bit depth of the image */
-    uint8_t BitDepth;
+    uint32_t bitDepth;
 
     /** Width/Height of the image data */
-    int Width;
-    int Height;
+    int width;
+    int height;
 
     /** Animation information */
-    int NumFrames;
-    int Framerate;
+    int numFrames;
+    int framerate;
 
     /** Last Error Message. */
-    std::string LastError;
+    std::string lastError;
 };
+}  // namespace ImageDecoder

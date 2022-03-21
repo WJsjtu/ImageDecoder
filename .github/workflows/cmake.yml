@@ -1,0 +1,152 @@
+name: CMake
+
+on:
+  push:
+    tags:        
+      - '*'
+
+jobs:
+  build-macos-cocoa-clang:
+    name: Cocoa (macOS, Clang)
+    # The CMake configure and build commands are platform agnostic and should work equally
+    # well on Windows or Mac.  You can convert this to a matrix build if you need
+    # cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    runs-on:  macos-latest
+    env:
+      MACOSX_DEPLOYMENT_TARGET: 10.9
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Configure CMake Shared Debug
+        run: cmake -B ${{github.workspace}}/Build/Shared/Debug -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/Debug
+      - name: Build Debug
+        run: cmake --build ${{github.workspace}}/Build/Shared/Debug --config DEBUG --target install
+        
+      - name: Configure CMake Shared MinSizeRel
+        run: cmake -B ${{github.workspace}}/Build/Shared/MinSizeRel -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/MinSizeRel
+      - name: Build MinSizeRel
+        run: cmake --build ${{github.workspace}}/Build/Shared/MinSizeRel --config MINSIZEREL --target install
+
+      - name: Configure CMake Static Debug
+        run: cmake -B ${{github.workspace}}/Build/Static/Debug -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/Debug
+      - name: Build Debug
+        run: cmake --build ${{github.workspace}}/Build/Static/Debug --config DEBUG --target install
+        
+      - name: Configure CMake Static MinSizeRel
+        run: cmake -B ${{github.workspace}}/Build/Static/MinSizeRel -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/MinSizeRel
+      - name: Build MinSizeRel
+        run: cmake --build ${{github.workspace}}/Build/Static/MinSizeRel --config MINSIZEREL --target install
+
+      - uses: actions/upload-artifact@master
+        with:
+          name: darwin
+          path: |
+            ${{github.workspace}}/Install/shared/Debug
+            ${{github.workspace}}/Install/shared/MinSizeRel
+            ${{github.workspace}}/Install/static/Debug
+            ${{github.workspace}}/Install/static/MinSizeRel
+
+  build-windows-win32-vs2017:
+    name: Win32 (Windows, VS2017)
+    runs-on: windows-2016
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Configure CMake Shared Debug
+        run: cmake -B ${{github.workspace}}/Build/Shared/Debug -G "Visual Studio 15 2017" -A Win32 -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/Debug
+      - name: Build Debug
+        run: cmake --build ${{github.workspace}}/Build/Shared/Debug --config DEBUG --target install
+      
+      - name: Configure CMake Shared MinSizeRel
+        run: cmake -B ${{github.workspace}}/Build/Shared/MinSizeRel -G "Visual Studio 15 2017" -A Win32 -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/MinSizeRel
+      - name: Build MinSizeRel
+        run: cmake --build ${{github.workspace}}/Build/Shared/MinSizeRel --config MINSIZEREL --target install
+
+      - name: Configure CMake Static Debug
+        run: cmake -B ${{github.workspace}}/Build/Static/Debug -G "Visual Studio 15 2017" -A Win32 -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/Debug
+      - name: Build Debug
+        run: cmake --build ${{github.workspace}}/Build/Static/Debug --config DEBUG --target install
+      
+      - name: Configure CMake Static MinSizeRel
+        run: cmake -B ${{github.workspace}}/Build/Static/MinSizeRel -G "Visual Studio 15 2017" -A Win32 -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/MinSizeRel
+      - name: Build MinSizeRel
+        run: cmake --build ${{github.workspace}}/Build/Static/MinSizeRel --config MINSIZEREL --target install
+
+      - uses: actions/upload-artifact@master
+        with:
+          name: win32
+          path: |
+            ${{github.workspace}}/Install/shared/Debug
+            ${{github.workspace}}/Install/shared/MinSizeRel
+            ${{github.workspace}}/Install/static/Debug
+            ${{github.workspace}}/Install/static/MinSizeRel
+
+  build-windows-win64-vs2017:
+    name: Win64 (Windows, VS2017)
+    runs-on: windows-2016
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Configure CMake Shared Debug
+        run: cmake -B ${{github.workspace}}/Build/Shared/Debug -G "Visual Studio 15 2017" -A x64 -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/Debug
+      - name: Build Debug
+        run: cmake --build ${{github.workspace}}/Build/Shared/Debug --config DEBUG --target install
+      
+      - name: Configure CMake Shared MinSizeRel
+        run: cmake -B ${{github.workspace}}/Build/Shared/MinSizeRel -G "Visual Studio 15 2017" -A x64 -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/shared/MinSizeRel
+      - name: Build MinSizeRel
+        run: cmake --build ${{github.workspace}}/Build/Shared/MinSizeRel --config MINSIZEREL --target install
+
+      - name: Configure CMake Static Debug
+        run: cmake -B ${{github.workspace}}/Build/Static/Debug -G "Visual Studio 15 2017" -A x64 -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/Debug
+      - name: Build Debug
+        run: cmake --build ${{github.workspace}}/Build/Static/Debug --config DEBUG --target install
+      
+      - name: Configure CMake Static MinSizeRel
+        run: cmake -B ${{github.workspace}}/Build/Static/MinSizeRel -G "Visual Studio 15 2017" -A x64 -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE=MINSIZEREL -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/Install/static/MinSizeRel
+      - name: Build MinSizeRel
+        run: cmake --build ${{github.workspace}}/Build/Static/MinSizeRel --config MINSIZEREL --target install
+
+      - uses: actions/upload-artifact@master
+        with:
+          name: win64
+          path: |
+            ${{github.workspace}}/Install/shared/Debug
+            ${{github.workspace}}/Install/shared/MinSizeRel
+            ${{github.workspace}}/Install/static/Debug
+            ${{github.workspace}}/Install/static/MinSizeRel
+
+  release:
+    name: Release
+    needs: [build-macos-cocoa-clang, build-windows-win32-vs2017, build-windows-win64-vs2017]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+
+      - uses: actions/download-artifact@master
+        with:
+          name: darwin
+          path: ${{github.workspace}}/release/darwin
+
+      - uses: actions/download-artifact@master
+        with:
+          name: win32
+          path: ${{github.workspace}}/release/win32/x86
+
+      - uses: actions/download-artifact@master
+        with:
+          name: win64
+          path: ${{github.workspace}}/release/win32/x64
+
+      - name: Zip
+        run: cd ${{github.workspace}}/release && zip -vr ${{github.workspace}}/release.zip ./ && cd ${{github.workspace}}
+      
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          prerelease: false
+          name: ${{ steps.version.outputs.version }}
+          files: ${{github.workspace}}/release.zip
+      

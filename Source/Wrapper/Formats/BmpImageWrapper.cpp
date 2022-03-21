@@ -1,8 +1,8 @@
 ﻿#include "BmpImageWrapper.h"
 #include <cmath>
-#include "Utils.h"
+#include "Utils/Utils.h"
 #include "Wrapper/BmpImageSupport.h"
-
+namespace ImageDecoder {
 /**
  * BMP image wrapper class.
  * This code was adapted from UTextureFactory::ImportTexture, but has not been throughly tested.
@@ -10,29 +10,29 @@
 
 FBmpImageWrapper::FBmpImageWrapper(bool bInHasHeader, bool bInHalfHeight) : FImageWrapperBase(), bHasHeader(bInHasHeader), bHalfHeight(bInHalfHeight) {}
 
-void FBmpImageWrapper::Compress(int Quality) { std::cerr << "BMP compression not supported" << std::endl; }
+void FBmpImageWrapper::Compress(int quality) { std::cerr << "BMP compression not supported" << std::endl; }
 
-void FBmpImageWrapper::Uncompress(const ERGBFormat InFormat, const int InBitDepth) {
-    const uint8_t* Buffer = CompressedData.data();
+void FBmpImageWrapper::Uncompress(const ERGBFormat inFormat, const int inBitDepth) {
+    const uint8_t* buffer = compressedData.data();
 
-    if (!bHasHeader || ((CompressedData.size() >= sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader)) && Buffer[0] == 'B' && Buffer[1] == 'M')) {
-        UncompressBMPData(InFormat, InBitDepth);
+    if (!bHasHeader || ((compressedData.size() >= sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader)) && buffer[0] == 'B' && buffer[1] == 'M')) {
+        UncompressBMPData(inFormat, inBitDepth);
     }
 }
 
-void FBmpImageWrapper::UncompressBMPData(const ERGBFormat InFormat, const int InBitDepth) {
-    const uint8_t* Buffer = CompressedData.data();
+void FBmpImageWrapper::UncompressBMPData(const ERGBFormat inFormat, const int inBitDepth) {
+    const uint8_t* Buffer = compressedData.data();
     const FBitmapInfoHeader* bmhdr = nullptr;
-    const uint8_t* Bits = nullptr;
-    EBitmapHeaderVersion HeaderVersion = EBitmapHeaderVersion::BHV_BITMAPINFOHEADER;
+    const uint8_t* bits = nullptr;
+    EBitmapHeaderVersion headerVersion = EBitmapHeaderVersion::BHV_BITMAPINFOHEADER;
 
     if (bHasHeader) {
         bmhdr = (FBitmapInfoHeader*)(Buffer + sizeof(FBitmapFileHeader));
-        Bits = Buffer + ((FBitmapFileHeader*)Buffer)->bfOffBits;
-        HeaderVersion = ((FBitmapFileHeader*)Buffer)->GetHeaderVersion();
+        bits = Buffer + ((FBitmapFileHeader*)Buffer)->bfOffBits;
+        headerVersion = ((FBitmapFileHeader*)Buffer)->GetHeaderVersion();
     } else {
         bmhdr = (FBitmapInfoHeader*)Buffer;
-        Bits = Buffer + sizeof(FBitmapInfoHeader);
+        bits = Buffer + sizeof(FBitmapInfoHeader);
     }
 
     if (bmhdr->biCompression != BCBI_RGB && bmhdr->biCompression != BCBI_BITFIELDS) {
@@ -46,20 +46,20 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat InFormat, const int In
 
     if (bmhdr->biPlanes == 1 && bmhdr->biBitCount == 8) {
         // Do palette.
-        const uint8_t* bmpal = (uint8_t*)CompressedData.data() + sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader);
+        const uint8_t* bmpal = (uint8_t*)compressedData.data() + sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader);
 
         // Set texture properties.
-        Width = bmhdr->biWidth;
+        width = bmhdr->biWidth;
         const bool bNegativeHeight = (bmhdr->biHeight < 0);
-        Height = abs(bHalfHeight ? bmhdr->biHeight / 2 : bmhdr->biHeight);
-        Format = ERGBFormat::BGRA;
-        RawData.resize(Height * Width * 4);
+        height = abs(bHalfHeight ? bmhdr->biHeight / 2 : bmhdr->biHeight);
+        format = ERGBFormat::BGRA;
+        rawData.resize(height * width * 4);
 
-        FColor* ImageData = (FColor*)RawData.data();
+        FColor* imageData = (FColor*)rawData.data();
 
         // If the number for color palette entries is 0, we need to default to 2^biBitCount entries.  In this case 2^8 = 256
         int clrPaletteCount = bmhdr->biClrUsed ? bmhdr->biClrUsed : 256;
-        std::vector<FColor> Palette;
+        Vector<FColor> palette;
 
         for (int i = 0; i < clrPaletteCount; i++) {
             FColor color;
@@ -67,92 +67,92 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat InFormat, const int In
             color.g = bmpal[i * 4 + 1];
             color.b = bmpal[i * 4 + 0];
             color.a = 255;
-            Palette.push_back(std::move(color));
+            palette.push_back(std::move(color));
         }
 
-        while (Palette.size() < 256) {
+        while (palette.size() < 256) {
             FColor color;
             color.r = 0;
             color.g = 0;
             color.b = 0;
             color.a = 255;
-            Palette.push_back(std::move(color));
+            palette.push_back(std::move(color));
         }
 
         // Copy scanlines, accounting for scanline direction according to the Height field.
-        const int SrcStride = Align(Width, 4);
-        const int SrcPtrDiff = bNegativeHeight ? SrcStride : -SrcStride;
-        const uint8_t* SrcPtr = Bits + (bNegativeHeight ? 0 : Height - 1) * SrcStride;
+        const int srcStride = Align(width, 4);
+        const int srcPtrDiff = bNegativeHeight ? srcStride : -srcStride;
+        const uint8_t* srcPtr = bits + (bNegativeHeight ? 0 : height - 1) * srcStride;
 
-        for (int Y = 0; Y < Height; Y++) {
-            for (int X = 0; X < Width; X++) {
-                *ImageData++ = Palette[SrcPtr[X]];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                *imageData++ = palette[srcPtr[x]];
             }
 
-            SrcPtr += SrcPtrDiff;
+            srcPtr += srcPtrDiff;
         }
     } else if (bmhdr->biPlanes == 1 && bmhdr->biBitCount == 24) {
         // Set texture properties.
-        Width = bmhdr->biWidth;
+        width = bmhdr->biWidth;
         const bool bNegativeHeight = (bmhdr->biHeight < 0);
-        Height = abs(bHalfHeight ? bmhdr->biHeight / 2 : bmhdr->biHeight);
-        Format = ERGBFormat::BGRA;
-        RawData.resize(Height * Width * 4);
+        height = abs(bHalfHeight ? bmhdr->biHeight / 2 : bmhdr->biHeight);
+        format = ERGBFormat::BGRA;
+        rawData.resize(height * width * 4);
 
-        uint8_t* ImageData = RawData.data();
+        uint8_t* imageData = rawData.data();
 
         // Copy scanlines, accounting for scanline direction according to the Height field.
-        const int SrcStride = Align(Width * 3, 4);
-        const int SrcPtrDiff = bNegativeHeight ? SrcStride : -SrcStride;
-        const uint8_t* SrcPtr = Bits + (bNegativeHeight ? 0 : Height - 1) * SrcStride;
+        const int srcStride = Align(width * 3, 4);
+        const int srcPtrDiff = bNegativeHeight ? srcStride : -srcStride;
+        const uint8_t* srcPtr = bits + (bNegativeHeight ? 0 : height - 1) * srcStride;
 
-        for (int Y = 0; Y < Height; Y++) {
-            const uint8_t* SrcRowPtr = SrcPtr;
-            for (int X = 0; X < Width; X++) {
-                *ImageData++ = *SrcRowPtr++;
-                *ImageData++ = *SrcRowPtr++;
-                *ImageData++ = *SrcRowPtr++;
-                *ImageData++ = 0xFF;
+        for (int y = 0; y < height; y++) {
+            const uint8_t* srcRowPtr = srcPtr;
+            for (int x = 0; x < width; x++) {
+                *imageData++ = *srcRowPtr++;
+                *imageData++ = *srcRowPtr++;
+                *imageData++ = *srcRowPtr++;
+                *imageData++ = 0xFF;
             }
 
-            SrcPtr += SrcPtrDiff;
+            srcPtr += srcPtrDiff;
         }
     } else if (bmhdr->biPlanes == 1 && bmhdr->biBitCount == 32) {
         // Set texture properties.
-        Width = bmhdr->biWidth;
+        width = bmhdr->biWidth;
         const bool bNegativeHeight = (bmhdr->biHeight < 0);
-        Height = abs(bHalfHeight ? bmhdr->biHeight / 2 : bmhdr->biHeight);
-        Format = ERGBFormat::BGRA;
-        RawData.resize(Height * Width * 4);
+        height = abs(bHalfHeight ? bmhdr->biHeight / 2 : bmhdr->biHeight);
+        format = ERGBFormat::BGRA;
+        rawData.resize(height * width * 4);
 
-        uint8_t* ImageData = RawData.data();
+        uint8_t* imageData = rawData.data();
 
         // Copy scanlines, accounting for scanline direction according to the Height field.
-        const int SrcStride = Width * 4;
-        const int SrcPtrDiff = bNegativeHeight ? SrcStride : -SrcStride;
-        const uint8_t* SrcPtr = Bits + (bNegativeHeight ? 0 : Height - 1) * SrcStride;
+        const int srcStride = width * 4;
+        const int srcPtrDiff = bNegativeHeight ? srcStride : -srcStride;
+        const uint8_t* srcPtr = bits + (bNegativeHeight ? 0 : height - 1) * srcStride;
 
         // Getting the bmiColors member from the BITMAPINFO, which is used as a mask on BitFields compression.
-        const FBmiColorsMask* ColorMask = (FBmiColorsMask*)(CompressedData.data() + sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader));
+        const FBmiColorsMask* colorMask = (FBmiColorsMask*)(compressedData.data() + sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader));
         // Header version 4 introduced the option to declare custom color space, so we can't just assume sRGB past that version.
-        const bool bAssumeRGBCompression = bmhdr->biCompression == BCBI_RGB || (bmhdr->biCompression == BCBI_BITFIELDS && ColorMask->IsMaskRGB8() && HeaderVersion < EBitmapHeaderVersion::BHV_BITMAPV4HEADER);
+        const bool bAssumeRGBCompression = bmhdr->biCompression == BCBI_RGB || (bmhdr->biCompression == BCBI_BITFIELDS && colorMask->IsMaskRGB8() && headerVersion < EBitmapHeaderVersion::BHV_BITMAPV4HEADER);
 
         if (bAssumeRGBCompression) {
-            for (int Y = 0; Y < Height; Y++) {
-                const uint8_t* SrcRowPtr = SrcPtr;
-                for (int X = 0; X < Width; X++) {
-                    *ImageData++ = *SrcRowPtr++;
-                    *ImageData++ = *SrcRowPtr++;
-                    *ImageData++ = *SrcRowPtr++;
-                    *ImageData++ = 0xFF;  // In BCBI_RGB compression the last 8 bits of the pixel are not used.
-                    SrcRowPtr++;
+            for (int y = 0; y < height; y++) {
+                const uint8_t* srcRowPtr = srcPtr;
+                for (int x = 0; x < width; x++) {
+                    *imageData++ = *srcRowPtr++;
+                    *imageData++ = *srcRowPtr++;
+                    *imageData++ = *srcRowPtr++;
+                    *imageData++ = 0xFF;  // In BCBI_RGB compression the last 8 bits of the pixel are not used.
+                    srcRowPtr++;
                 }
 
-                SrcPtr += SrcPtrDiff;
+                srcPtr += srcPtrDiff;
             }
         } else if (bmhdr->biCompression == BCBI_BITFIELDS) {
             // If the header version is V4 or higher we need to make sure we are still using sRGB format
-            if (HeaderVersion >= EBitmapHeaderVersion::BHV_BITMAPV4HEADER) {
+            if (headerVersion >= EBitmapHeaderVersion::BHV_BITMAPV4HEADER) {
                 const FBitmapInfoHeaderV4* bmhdrV4 = (FBitmapInfoHeaderV4*)(Buffer + sizeof(FBitmapFileHeader));
 
                 if (bmhdrV4->biCSType != (uint32_t)EBitmapCSType::BCST_LCS_sRGB && bmhdrV4->biCSType != (uint32_t)EBitmapCSType::BCST_LCS_WINDOWS_COLOR_SPACE) {
@@ -161,31 +161,31 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat InFormat, const int In
             }
 
             // Calculating the bit mask info needed to remap the pixels' color values.
-            uint32_t TrailingBits[4];
-            float MappingRatio[4];
+            uint32_t trailingBits[4];
+            float mappingRatio[4];
             for (uint32_t MaskIndex = 0; MaskIndex < 4; MaskIndex++) {
-                TrailingBits[MaskIndex] = CountTrailingZeros(ColorMask->RGBAMask[MaskIndex]);
-                const uint32_t NumberOfBits = 32 - (TrailingBits[MaskIndex] + CountLeadingZeros(ColorMask->RGBAMask[MaskIndex]));
-                MappingRatio[MaskIndex] = NumberOfBits == 0 ? 0 : (exp2(8) - 1) / (exp2(NumberOfBits) - 1);
+                trailingBits[MaskIndex] = CountTrailingZeros(colorMask->RGBAMask[MaskIndex]);
+                const uint32_t NumberOfBits = 32 - (trailingBits[MaskIndex] + CountLeadingZeros(colorMask->RGBAMask[MaskIndex]));
+                mappingRatio[MaskIndex] = static_cast<float>(NumberOfBits == 0 ? 0 : (exp2(8) - 1) / (exp2(NumberOfBits) - 1));
             }
 
             // In header pre-version 4, we should ignore the last 32bit (alpha) content.
-            const bool bHasAlphaChannel = ColorMask->RGBAMask[3] != 0 && HeaderVersion >= EBitmapHeaderVersion::BHV_BITMAPV4HEADER;
+            const bool bHasAlphaChannel = colorMask->RGBAMask[3] != 0 && headerVersion >= EBitmapHeaderVersion::BHV_BITMAPV4HEADER;
 
-            for (int Y = 0; Y < Height; Y++) {
-                const uint32_t* SrcPixel = (uint32_t*)SrcPtr;
-                for (int X = 0; X < Width; X++) {
+            for (int y = 0; y < height; y++) {
+                const uint32_t* srcPixel = (uint32_t*)srcPtr;
+                for (int x = 0; x < width; x++) {
                     // Set the color values in BGRA order.
                     for (int ColorIndex = 2; ColorIndex >= 0; ColorIndex--) {
-                        *ImageData++ = (int)(round(((*SrcPixel & ColorMask->RGBAMask[ColorIndex]) >> TrailingBits[ColorIndex]) * MappingRatio[ColorIndex]));
+                        *imageData++ = (int)(round(((*srcPixel & colorMask->RGBAMask[ColorIndex]) >> trailingBits[ColorIndex]) * mappingRatio[ColorIndex]));
                     }
 
-                    *ImageData++ = bHasAlphaChannel ? (int)(round(((*SrcPixel & ColorMask->RGBAMask[3]) >> TrailingBits[3]) * MappingRatio[3])) : 0xFF;
+                    *imageData++ = bHasAlphaChannel ? (int)(round(((*srcPixel & colorMask->RGBAMask[3]) >> trailingBits[3]) * mappingRatio[3])) : 0xFF;
 
-                    SrcPixel++;
+                    srcPixel++;
                 }
 
-                SrcPtr += SrcPtrDiff;
+                srcPtr += srcPtrDiff;
             }
         } else {
             std::cerr << "BMP uses an unsupported compression format " << bmhdr->biCompression << std::endl;
@@ -197,16 +197,16 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat InFormat, const int In
     }
 }
 
-bool FBmpImageWrapper::SetCompressed(const void* InCompressedData, int64_t InCompressedSize) {
-    bool bResult = FImageWrapperBase::SetCompressed(InCompressedData, InCompressedSize);
+bool FBmpImageWrapper::SetCompressed(const void* inCompressedData, int64_t inCompressedSize) {
+    bool bResult = FImageWrapperBase::SetCompressed(inCompressedData, inCompressedSize);
 
     return bResult && (bHasHeader ? LoadBMPHeader() : LoadBMPInfoHeader());  // Fetch the variables from the header info
 }
 
 bool FBmpImageWrapper::LoadBMPHeader() {
-    const FBitmapInfoHeader* bmhdr = (FBitmapInfoHeader*)(CompressedData.data() + sizeof(FBitmapFileHeader));
-    const FBitmapFileHeader* bmf = (FBitmapFileHeader*)(CompressedData.data() + 0);
-    if ((CompressedData.size() >= sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader)) && CompressedData.data()[0] == 'B' && CompressedData.data()[1] == 'M') {
+    const FBitmapInfoHeader* bmhdr = (FBitmapInfoHeader*)(compressedData.data() + sizeof(FBitmapFileHeader));
+    const FBitmapFileHeader* bmf = (FBitmapFileHeader*)(compressedData.data() + 0);
+    if ((compressedData.size() >= sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader)) && compressedData.data()[0] == 'B' && compressedData.data()[1] == 'M') {
         if (bmhdr->biCompression != BCBI_RGB && bmhdr->biCompression != BCBI_BITFIELDS) {
             std::cerr << "RLE compression of BMP images not supported" << std::endl;
             return false;
@@ -214,10 +214,10 @@ bool FBmpImageWrapper::LoadBMPHeader() {
 
         if (bmhdr->biPlanes == 1 && (bmhdr->biBitCount == 8 || bmhdr->biBitCount == 24 || bmhdr->biBitCount == 32)) {
             // Set texture properties.
-            Width = bmhdr->biWidth;
-            Height = abs(bmhdr->biHeight);
-            Format = ERGBFormat::BGRA;
-            BitDepth = bmhdr->biBitCount;
+            width = bmhdr->biWidth;
+            height = abs(bmhdr->biHeight);
+            format = ERGBFormat::BGRA;
+            bitDepth = bmhdr->biBitCount;
 
             return true;
         }
@@ -233,7 +233,7 @@ bool FBmpImageWrapper::LoadBMPHeader() {
 }
 
 bool FBmpImageWrapper::LoadBMPInfoHeader() {
-    const FBitmapInfoHeader* bmhdr = (FBitmapInfoHeader*)CompressedData.data();
+    const FBitmapInfoHeader* bmhdr = (FBitmapInfoHeader*)compressedData.data();
 
     if (bmhdr->biCompression != BCBI_RGB && bmhdr->biCompression != BCBI_BITFIELDS) {
         std::cerr << "RLE compression of BMP images not supported" << std::endl;
@@ -242,10 +242,10 @@ bool FBmpImageWrapper::LoadBMPInfoHeader() {
 
     if (bmhdr->biPlanes == 1 && (bmhdr->biBitCount == 8 || bmhdr->biBitCount == 24 || bmhdr->biBitCount == 32)) {
         // Set texture properties.
-        Width = bmhdr->biWidth;
-        Height = abs(bmhdr->biHeight);
-        Format = ERGBFormat::BGRA;
-        BitDepth = bmhdr->biBitCount;
+        width = bmhdr->biWidth;
+        height = abs(bmhdr->biHeight);
+        format = ERGBFormat::BGRA;
+        bitDepth = bmhdr->biBitCount;
 
         return true;
     }
@@ -258,3 +258,4 @@ bool FBmpImageWrapper::LoadBMPInfoHeader() {
 
     return false;
 }
+}  // namespace ImageDecoder

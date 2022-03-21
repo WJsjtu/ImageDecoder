@@ -1,5 +1,6 @@
 ﻿#pragma once
-#include "Wrapper/ImageWrapperBase.h"
+#include <cstdint>
+#include <vector>
 #include "Imath/ImathBox.h"
 #include "OpenEXR/ImfArray.h"
 #include "OpenEXR/ImfChannelList.h"
@@ -9,9 +10,8 @@
 #include "OpenEXR/ImfOutputFile.h"
 #include "OpenEXR/ImfRgbaFile.h"
 #include "OpenEXR/ImfStdIO.h"
-#include <cstdint>
-#include <vector>
-
+#include "Wrapper/ImageWrapperBase.h"
+namespace ImageDecoder {
 /**
  * OpenEXR implementation of the helper class
  */
@@ -25,19 +25,20 @@ public:
 public:
     //~ FImageWrapper interface
 
-    virtual void Compress(int Quality) override;
-    virtual void Uncompress(const ERGBFormat InFormat, int InBitDepth) override;
-    virtual bool SetCompressed(const void* InCompressedData, int64_t InCompressedSize) override;
+    virtual void Compress(int quality) override;
+    virtual void Uncompress(const ERGBFormat inFormat, int inBitDepth) override;
+    virtual bool SetCompressed(const void* inCompressedData, int64_t inCompressedSize) override;
 
 protected:
     template <Imf::PixelType OutputFormat, typename sourcetype>
-    void WriteFrameBufferChannel(Imf::FrameBuffer& ImfFrameBuffer, const char* ChannelName, const sourcetype* SrcData, std::vector<uint8_t>& ChannelBuffer);
+    void WriteFrameBufferChannel(Imf::FrameBuffer& imfFrameBuffer, const char* channelName, const sourcetype* srcData, std::vector<uint8_t>& channelBuffer);
 
     template <Imf::PixelType OutputFormat, typename sourcetype>
-    void CompressRaw(const sourcetype* SrcData, bool bIgnoreAlpha);
+    void CompressRaw(const sourcetype* srcData, bool bIgnoreAlpha);
 
-    const char* GetRawChannelName(int ChannelIndex) const;
+    const char* GetRawChannelName(int channelIndex) const;
 
 private:
     bool bUseCompression;
 };
+}  // namespace ImageDecoder

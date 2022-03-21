@@ -1,9 +1,7 @@
-﻿#include "Decoder/Decoder.h"
+﻿#include "Decoder.h"
 #include <algorithm>
 #include <string>
-#include "Wrapper/IImageWrapper.h"
-#include "Wrapper/IImageWrapperModule.h"
-
+namespace ImageDecoder {
 // .PCX file header.
 #pragma pack(push, 1)
 class FPCXFileHeader {
@@ -31,7 +29,7 @@ public:
 #pragma pack(push, 1)
 
 struct FTGAFileHeader {
-    uint8_t IdFieldLength;
+    uint8_t idFieldLength;
     uint8_t colorMapType;
     uint8_t imageTypeCode;  // 2 for uncompressed RGB format
     uint16_t colorMapOrigin;
@@ -47,8 +45,8 @@ struct FTGAFileHeader {
 
 // Output B8-G8-R8-A8
 void DecompressTGA_RLE_32bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
-    uint8_t* IdData = (uint8_t*)TGA + sizeof(FTGAFileHeader);
-    uint8_t* colorMap = IdData + TGA->IdFieldLength;
+    uint8_t* idData = (uint8_t*)TGA + sizeof(FTGAFileHeader);
+    uint8_t* colorMap = idData + TGA->idFieldLength;
     uint8_t* imageData = (uint8_t*)(colorMap + (TGA->colorMapEntrySize + 4) / 8 * TGA->colorMapLength);
     uint32_t pixel = 0;
     int RLERun = 0;
@@ -85,7 +83,7 @@ void DecompressTGA_RLE_32bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
 // Output B8-G8-R8-A8(255)
 void DecompressTGA_RLE_24bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
     uint8_t* IdData = (uint8_t*)TGA + sizeof(FTGAFileHeader);
-    uint8_t* colorMap = IdData + TGA->IdFieldLength;
+    uint8_t* colorMap = IdData + TGA->idFieldLength;
     uint8_t* imageData = (uint8_t*)(colorMap + (TGA->colorMapEntrySize + 4) / 8 * TGA->colorMapLength);
     uint8_t pixel[4] = {};
     int RLERun = 0;
@@ -124,7 +122,7 @@ void DecompressTGA_RLE_24bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
 // Output B8-G8-R8-A8
 void DecompressTGA_RLE_16bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
     uint8_t* IdData = (uint8_t*)TGA + sizeof(FTGAFileHeader);
-    uint8_t* colorMap = IdData + TGA->IdFieldLength;
+    uint8_t* colorMap = IdData + TGA->idFieldLength;
     uint16_t* imageData = (uint16_t*)(colorMap + (TGA->colorMapEntrySize + 4) / 8 * TGA->colorMapLength);
     uint16_t filePixel = 0;
     uint32_t texturePixel = 0;
@@ -167,7 +165,7 @@ void DecompressTGA_RLE_16bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
 // Output B8-G8-R8-A8
 void DecompressTGA_32bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
     uint8_t* IdData = (uint8_t*)TGA + sizeof(FTGAFileHeader);
-    uint8_t* colorMap = IdData + TGA->IdFieldLength;
+    uint8_t* colorMap = IdData + TGA->idFieldLength;
     uint32_t* imageData = (uint32_t*)(colorMap + (TGA->colorMapEntrySize + 4) / 8 * TGA->colorMapLength);
 
     for (int Y = 0; Y < TGA->height; Y++) {
@@ -178,7 +176,7 @@ void DecompressTGA_32bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
 // Output B8-G8-R8-A8
 void DecompressTGA_16bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
     uint8_t* IdData = (uint8_t*)TGA + sizeof(FTGAFileHeader);
-    uint8_t* colorMap = IdData + TGA->IdFieldLength;
+    uint8_t* colorMap = IdData + TGA->idFieldLength;
     uint16_t* imageData = (uint16_t*)(colorMap + (TGA->colorMapEntrySize + 4) / 8 * TGA->colorMapLength);
     uint16_t filePixel = 0;
     uint32_t texturePixel = 0;
@@ -200,7 +198,7 @@ void DecompressTGA_16bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
 // Output B8-G8-R8-A8(255)
 void DecompressTGA_24bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
     uint8_t* IdData = (uint8_t*)TGA + sizeof(FTGAFileHeader);
-    uint8_t* colorMap = IdData + TGA->IdFieldLength;
+    uint8_t* colorMap = IdData + TGA->idFieldLength;
     uint8_t* imageData = (uint8_t*)(colorMap + (TGA->colorMapEntrySize + 4) / 8 * TGA->colorMapLength);
     uint8_t pixel[4];
 
@@ -217,7 +215,7 @@ void DecompressTGA_24bpp(const FTGAFileHeader* TGA, uint32_t* textureData) {
 
 void DecompressTGA_8bpp(const FTGAFileHeader* TGA, uint8_t* textureData) {
     const uint8_t* const IdData = (uint8_t*)TGA + sizeof(FTGAFileHeader);
-    const uint8_t* const colorMap = IdData + TGA->IdFieldLength;
+    const uint8_t* const colorMap = IdData + TGA->idFieldLength;
     const uint8_t* const imageData = (uint8_t*)(colorMap + (TGA->colorMapEntrySize + 4) / 8 * TGA->colorMapLength);
 
     int RevY = 0;
@@ -272,7 +270,7 @@ bool DecompressTGA_helper(const FTGAFileHeader* TGA, uint32_t*& textureData, con
     bool flipX = (TGA->imageDescriptor & 0x10) ? 1 : 0;
     bool flipY = (TGA->imageDescriptor & 0x20) ? 1 : 0;
     if (flipY || flipX) {
-        std::vector<uint8_t> FlippedData;
+        Vector<uint8_t> FlippedData;
         FlippedData.resize(textureDataSize);
 
         int numBlocksX = TGA->width;
@@ -334,10 +332,10 @@ bool DecompressTGA(const FTGAFileHeader* TGA, ImportImage& outImage, std::string
         outImage.data.resize(outImage.width * outImage.height * 4);
     }
 
-    int TextureDataSize = outImage.data.size();
+    size_t TextureDataSize = outImage.data.size();
     uint32_t* TextureData = (uint32_t*)outImage.data.data();
 
-    return DecompressTGA_helper(TGA, TextureData, TextureDataSize, warn);
+    return DecompressTGA_helper(TGA, TextureData, static_cast<int>(TextureDataSize), warn);
 }
 
 bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t length, bool bFillPNGZeroAlpha, std::string& warn, ImportImage& outImage) {
@@ -346,7 +344,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
     // PNG
     //
     if (imageFormat == EImageFormat::PNG) {
-        std::shared_ptr<IImageWrapper> pngImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+        std::shared_ptr<IImageWrapper> pngImageWrapper(ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG));
         if (pngImageWrapper && pngImageWrapper->SetCompressed(buffer, length)) {
             // Select the texture's source format
             ETextureSourceFormat textureFormat = ETextureSourceFormat::Invalid;
@@ -406,7 +404,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
     // JPEG
     //
     if (imageFormat == EImageFormat::JPEG) {
-        std::shared_ptr<IImageWrapper> jpegImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG);
+        std::shared_ptr<IImageWrapper> jpegImageWrapper(ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG));
         if (jpegImageWrapper && jpegImageWrapper->SetCompressed(buffer, length)) {
             // Select the texture's source format
             ETextureSourceFormat textureFormat = ETextureSourceFormat::Invalid;
@@ -461,7 +459,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
     // EXR
     //
     if (imageFormat == EImageFormat::EXR) {
-        std::shared_ptr<IImageWrapper> exrImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::EXR);
+        std::shared_ptr<IImageWrapper> exrImageWrapper(ImageWrapperModule.CreateImageWrapper(EImageFormat::EXR));
         if (exrImageWrapper && exrImageWrapper->SetCompressed(buffer, length)) {
             int width = exrImageWrapper->GetWidth();
             int height = exrImageWrapper->GetHeight();
@@ -502,7 +500,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
     // BMP
     //
     if (imageFormat == EImageFormat::BMP) {
-        std::shared_ptr<IImageWrapper> bmpImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::BMP);
+        std::shared_ptr<IImageWrapper> bmpImageWrapper(ImageWrapperModule.CreateImageWrapper(EImageFormat::BMP));
         if (bmpImageWrapper && bmpImageWrapper->SetCompressed(buffer, length)) {
             int bitDepth = bmpImageWrapper->GetBitDepth();
             ERGBFormat format = bmpImageWrapper->GetFormat();
@@ -548,7 +546,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
 
                 // Import the palette.
                 uint8_t* PCXPalette = (uint8_t*)(buffer + length - 256 * 3);
-                std::vector<FColor> Palette;
+                Vector<FColor> Palette;
                 for (uint32_t i = 0; i < 256; i++) {
                     FColor color;
                     color.R = PCXPalette[i * 3 + 0];
@@ -645,98 +643,16 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             return bResult;
         }
     }
-
-#ifdef XXX
-    //
-    // PSD File
-    //
-    FPSDFileHeader psdhdr;
-    if (Length > sizeof(FPSDFileHeader)) {
-        psd_GetPSDHeader(Buffer, psdhdr);
-    }
-    if (psdhdr.IsValid()) {
-        // Check the resolution of the imported texture to ensure validity
-        if (!IsImportResolutionValid(psdhdr.Width, psdhdr.Height, bAllowNonPowerOfTwo, Warn)) {
-            return false;
-        }
-        if (!psdhdr.IsSupported()) {
-            Warn->Logf(TEXT("Format of this PSD is not supported. Only Grayscale and RGBColor PSD images are currently supported, in 8-bit or 16-bit."));
-            return false;
-        }
-
-        // Select the texture's source format
-        ETextureSourceFormat TextureFormat = TSF_Invalid;
-        if (psdhdr.Depth == 8) {
-            TextureFormat = TSF_BGRA8;
-        } else if (psdhdr.Depth == 16) {
-            TextureFormat = TSF_RGBA16;
-        }
-
-        if (TextureFormat == TSF_Invalid) {
-            Warn->Logf(ELogVerbosity::Error, TEXT("PSD file contains data in an unsupported format."));
-            return false;
-        }
-
-        // The psd is supported. Load it up.
-        OutImage.Init2DWithOneMip(psdhdr.Width, psdhdr.Height, TextureFormat);
-        uint8* Dst = (uint8*)OutImage.RawData.GetData();
-
-        if (!psd_ReadData(Dst, Buffer, psdhdr)) {
-            Warn->Logf(TEXT("Failed to read this PSD"));
-            return false;
-        }
-
-        return true;
-    }
-
-    //
-    // DDS Texture
-    //
-    FDDSLoadHelper DDSLoadHelper(Buffer, Length);
-    if (DDSLoadHelper.IsValid2DTexture()) {
-        // DDS 2d texture
-        if (!IsImportResolutionValid(DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo, Warn)) {
-            Warn->Logf(ELogVerbosity::Error, TEXT("DDS has invalid dimensions."));
-            return false;
-        }
-
-        ETextureSourceFormat SourceFormat = DDSLoadHelper.ComputeSourceFormat();
-
-        // Invalid DDS format
-        if (SourceFormat == TSF_Invalid) {
-            Warn->Logf(ELogVerbosity::Error, TEXT("DDS uses an unsupported format."));
-            return false;
-        }
-
-        uint32 MipMapCount = DDSLoadHelper.ComputeMipMapCount();
-        if (SourceFormat != TSF_Invalid && MipMapCount > 0) {
-            OutImage.Init2DWithMips(DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, MipMapCount, SourceFormat, DDSLoadHelper.GetDDSDataPointer());
-
-            if (MipMapCount > 1) {
-                // if the source has mips we keep the mips by default, unless the user changes that
-                MipGenSettings = TMGS_LeaveExistingMips;
-            }
-
-            if (FTextureSource::IsHDR(SourceFormat)) {
-                // the loader can suggest a compression setting
-                OutImage.CompressionSettings = TC_HDR;
-            }
-
-            return true;
-        }
-    }
-
-    FTiffLoadHelper TiffLoaderHelper;
-    if (TiffLoaderHelper.IsValid()) {
-        if (TiffLoaderHelper.Load(Buffer, Length)) {
-            OutImage.Init2DWithOneMip(TiffLoaderHelper.Width, TiffLoaderHelper.Height, TiffLoaderHelper.TextureSourceFormat, TiffLoaderHelper.RawData.GetData());
-
-            OutImage.SRGB = TiffLoaderHelper.bSRGB;
-            OutImage.CompressionSettings = TiffLoaderHelper.CompressionSettings;
-            return true;
-        }
-    }
-#endif
-
     return false;
 }
+
+bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t length, bool bFillPNGZeroAlpha, Vector<char>& warn, ImportImage& outImage) {
+    std::string warnStr;
+    bool result = DecodeImage(imageFormat, buffer, length, bFillPNGZeroAlpha, warnStr, outImage);
+    warn.clear();
+    for (auto chr : warnStr) {
+        warn.push_back(chr);
+    }
+    return result;
+}
+}  // namespace ImageDecoder

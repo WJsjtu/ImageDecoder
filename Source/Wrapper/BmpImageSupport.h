@@ -1,12 +1,14 @@
 ﻿#pragma once
 #include <cstdint>
-#include "Export.h"
+#include "Decoder.h"
+
+namespace ImageDecoder {
 
 struct FBitmapFileHeader;
 struct FBitmapInfoHeader;
 
 // Bitmap compression types.
-enum IMAGE_PORT EBitmapCompression {
+enum EBitmapCompression {
     BCBI_RGB = 0,
     BCBI_RLE8 = 1,
     BCBI_RLE4 = 2,
@@ -17,7 +19,7 @@ enum IMAGE_PORT EBitmapCompression {
 };
 
 // Bitmap info header versions.
-enum class IMAGE_PORT EBitmapHeaderVersion : uint8_t {
+enum class EBitmapHeaderVersion : uint8_t {
     BHV_BITMAPINFOHEADER = 0,
     BHV_BITMAPV2INFOHEADER = 1,
     BHV_BITMAPV3INFOHEADER = 2,
@@ -26,7 +28,7 @@ enum class IMAGE_PORT EBitmapHeaderVersion : uint8_t {
 };
 
 // Color space type of the bitmap, property introduced in Bitmap header version 4.
-enum class IMAGE_PORT EBitmapCSType : uint32_t {
+enum class EBitmapCSType : uint32_t {
     BCST_BLCS_CALIBRATED_RGB = 0x00000000,
     BCST_LCS_sRGB = 0x73524742,
     BCST_LCS_WINDOWS_COLOR_SPACE = 0x57696E20,
@@ -36,7 +38,7 @@ enum class IMAGE_PORT EBitmapCSType : uint32_t {
 
 // .BMP file header.
 #pragma pack(push, 1)
-struct IMAGE_PORT FBitmapFileHeader {
+struct FBitmapFileHeader {
     uint16_t bfType;
     uint32_t bfSize;
     uint16_t bfReserved1;
@@ -61,7 +63,7 @@ public:
 
 // .BMP subheader.
 #pragma pack(push, 1)
-struct IMAGE_PORT FBitmapInfoHeader {
+struct FBitmapInfoHeader {
     uint32_t biSize;
     uint32_t biWidth;
     int32_t biHeight;
@@ -78,7 +80,7 @@ struct IMAGE_PORT FBitmapInfoHeader {
 
 // .BMP subheader V4
 #pragma pack(push, 1)
-struct IMAGE_PORT FBitmapInfoHeaderV4 {
+struct FBitmapInfoHeaderV4 {
     uint32_t biSize;
     uint32_t biWidth;
     int32_t biHeight;
@@ -112,7 +114,7 @@ struct IMAGE_PORT FBitmapInfoHeaderV4 {
 
 #pragma pack(push, 1)
 // Used by InfoHeaders pre-version 4, a structure that is declared after the FBitmapInfoHeader.
-struct IMAGE_PORT FBmiColorsMask {
+struct FBmiColorsMask {
     // RGBA, in header pre-version 4, Alpha was only used as padding.
     uint32_t RGBAMask[4];
 
@@ -120,3 +122,4 @@ public:
     bool IsMaskRGB8() const;
 };
 #pragma pack(pop)
+}  // namespace ImageDecoder

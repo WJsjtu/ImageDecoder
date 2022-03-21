@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "Wrapper/ImageWrapperBase.h"
-
+namespace ImageDecoder {
 using tjhandle = void*;
 
 /**
@@ -11,25 +11,26 @@ using tjhandle = void*;
 class FJpegImageWrapper : public FImageWrapperBase {
 public:
     /** Default constructor. */
-    FJpegImageWrapper(int InNumComponents = 4);
+    FJpegImageWrapper(int inNumComponents = 4);
 
     virtual ~FJpegImageWrapper();
 
 public:
     //~ FImageWrapperBase interface
 
-    virtual bool SetCompressed(const void* InCompressedData, int64_t InCompressedSize) override;
-    virtual bool SetRaw(const void* InRawData, int64_t InRawSize, const int InWidth, const int InHeight, const ERGBFormat InFormat, const int InBitDepth) override;
-    virtual void Uncompress(const ERGBFormat InFormat, int InBitDepth) override;
-    virtual void Compress(int Quality) override;
+    virtual bool SetCompressed(const void* inCompressedData, int64_t inCompressedSize) override;
+    virtual bool SetRaw(const void* inRawData, int64_t inRawSize, const int inWidth, const int inHeight, const ERGBFormat inFormat, const int inBitDepth) override;
+    virtual void Uncompress(const ERGBFormat inFormat, int inBitDepth) override;
+    virtual void Compress(int quality) override;
 
-    bool SetCompressedTurbo(const void* InCompressedData, int64_t InCompressedSize);
-    void CompressTurbo(int Quality);
-    void UncompressTurbo(const ERGBFormat InFormat, int InBitDepth);
+    bool SetCompressedTurbo(const void* inCompressedData, int64_t inCompressedSize);
+    void CompressTurbo(int quality);
+    void UncompressTurbo(const ERGBFormat inFormat, int inBitDepth);
 
 private:
-    int NumComponents;
+    int numComponents;
 
-    tjhandle Compressor;
-    tjhandle Decompressor;
+    tjhandle compressor;
+    tjhandle decompressor;
 };
+}  // namespace ImageDecoder

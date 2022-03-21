@@ -1,58 +1,75 @@
 ﻿#include "ImageWrapperBase.h"
-#include <assert.h>
+#include "Utils/Utils.h"
+
+namespace ImageDecoder {
+
+bool IImageWrapper::GetRaw(const ERGBFormat inFormat, int inBitDepth, Vector<uint8_t>& outRawData) {
+    Vector<uint8_t> tmpRawData;
+    if (GetRaw(inFormat, inBitDepth, tmpRawData)) {
+        if (tmpRawData.size() != tmpRawData.size()) {
+            std::cerr << "Tried to get " << GetWidth() << "x" << GetHeight() << " " << inBitDepth << "bpp image with format " << static_cast<int8_t>(inFormat) << " into 32-bit TArray (%" << tmpRawData.size() << " bytes)" << std::endl;
+            return false;
+        }
+        // todo check
+        std::swap(outRawData, tmpRawData);
+        return true;
+    } else {
+        return false;
+    }
+}  // namespace ImageDecoder
 
 /* FImageWrapperBase structors
  *****************************************************************************/
 
-FImageWrapperBase::FImageWrapperBase() : RawFormat(ERGBFormat::Invalid), RawBitDepth(0), Format(ERGBFormat::Invalid), BitDepth(0), Width(0), Height(0), NumFrames(1), Framerate(0) {}
+FImageWrapperBase::FImageWrapperBase() : rawFormat(ERGBFormat::Invalid), rawBitDepth(0), format(ERGBFormat::Invalid), bitDepth(0), width(0), height(0), numFrames(1), framerate(0) {}
 
 /* FImageWrapperBase interface
  *****************************************************************************/
 
 void FImageWrapperBase::Reset() {
-    LastError.clear();
+    lastError.clear();
 
-    RawFormat = ERGBFormat::Invalid;
-    RawBitDepth = 0;
-    Format = ERGBFormat::Invalid;
-    BitDepth = 0;
-    Width = 0;
-    Height = 0;
-    NumFrames = 1;
-    Framerate = 0;
+    rawFormat = ERGBFormat::Invalid;
+    rawBitDepth = 0;
+    format = ERGBFormat::Invalid;
+    bitDepth = 0;
+    width = 0;
+    height = 0;
+    numFrames = 1;
+    framerate = 0;
 }
 
-void FImageWrapperBase::SetError(const char* ErrorMessage) { LastError = ErrorMessage; }
+void FImageWrapperBase::SetError(const char* ErrorMessage) { lastError = ErrorMessage; }
 
 /* IImageWrapper structors
  *****************************************************************************/
 
-const std::vector<uint8_t>& FImageWrapperBase::GetCompressed(int Quality) {
-    LastError.clear();
-    Compress(Quality);
+const Vector<uint8_t>& FImageWrapperBase::GetCompressed(int quality) {
+    lastError.clear();
+    Compress(quality);
 
-    return CompressedData;
+    return compressedData;
 }
 
-bool FImageWrapperBase::GetRaw(const ERGBFormat InFormat, int InBitDepth, std::vector<uint8_t>& OutRawData) {
-    LastError.clear();
-    Uncompress(InFormat, InBitDepth);
+bool FImageWrapperBase::GetRaw(const ERGBFormat inFormat, int inBitDepth, Vector<uint8_t>& outRawData) {
+    lastError.clear();
+    Uncompress(inFormat, inBitDepth);
 
-    if (LastError.empty()) {
-        OutRawData = std::move(RawData);
+    if (lastError.empty()) {
+        outRawData = std::move(rawData);
     }
 
-    return LastError.empty();
+    return lastError.empty();
 }
 
-bool FImageWrapperBase::SetCompressed(const void* InCompressedData, int64_t InCompressedSize) {
-    if (InCompressedSize > 0 && InCompressedData != nullptr) {
+bool FImageWrapperBase::SetCompressed(const void* inCompressedData, int64_t inCompressedSize) {
+    if (inCompressedSize > 0 && inCompressedData != nullptr) {
         Reset();
-        RawData.clear();  // Invalidates the raw data too
+        rawData.clear();  // Invalidates the raw data too
 
-        CompressedData.resize(InCompressedSize);
-        for (int i = 0; i < InCompressedSize; i++) {
-            CompressedData[i] = static_cast<const uint8_t*>(InCompressedData)[i];
+        compressedData.resize(inCompressedSize);
+        for (int i = 0; i < inCompressedSize; i++) {
+            compressedData[i] = static_cast<const uint8_t*>(inCompressedData)[i];
         }
 
         return true;
@@ -61,32 +78,33 @@ bool FImageWrapperBase::SetCompressed(const void* InCompressedData, int64_t InCo
     return false;
 }
 
-bool FImageWrapperBase::SetRaw(const void* InRawData, int64_t InRawSize, const int InWidth, const int InHeight, const ERGBFormat InFormat, const int InBitDepth) {
-    assert(InRawData != NULL);
-    assert(InRawSize > 0);
-    assert(InWidth > 0);
-    assert(InHeight > 0);
+bool FImageWrapperBase::SetRaw(const void* inRawData, int64_t inRawSize, const int inWidth, const int inHeight, const ERGBFormat inFormat, const int inBitDepth) {
+    Assert(inRawData != NULL);
+    Assert(inRawSize > 0);
+    Assert(inWidth > 0);
+    Assert(inHeight > 0);
 
     Reset();
-    CompressedData.clear();  // Invalidates the compressed data too
+    compressedData.clear();  // Invalidates the compressed data too
 
-    RawData.resize(InRawSize);
-    for (int i = 0; i < InRawSize; i++) {
-        RawData[i] = static_cast<const uint8_t*>(InRawData)[i];
+    rawData.resize(inRawSize);
+    for (int i = 0; i < inRawSize; i++) {
+        rawData[i] = static_cast<const uint8_t*>(inRawData)[i];
     }
 
-    RawFormat = InFormat;
-    RawBitDepth = InBitDepth;
+    rawFormat = inFormat;
+    rawBitDepth = inBitDepth;
 
-    Width = InWidth;
-    Height = InHeight;
-
-    return true;
-}
-
-bool FImageWrapperBase::SetAnimationInfo(int InNumFrames, int InFramerate) {
-    NumFrames = InNumFrames;
-    Framerate = InFramerate;
+    width = inWidth;
+    height = inHeight;
 
     return true;
 }
+
+bool FImageWrapperBase::SetAnimationInfo(int inNumFrames, int inFramerate) {
+    numFrames = inNumFrames;
+    framerate = inFramerate;
+
+    return true;
+}
+}  // namespace ImageDecoder
