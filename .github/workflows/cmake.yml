@@ -160,7 +160,7 @@ jobs:
 
   release:
     name: Release
-    needs: [build-macos-cocoa-clang, build-windows-win32-vs2017, build-windows-win64-vs2017]
+    needs: [build-macos-cocoa-clang-x86_64, build-macos-cocoa-clang-arm64, build-windows-win32-vs2017, build-windows-win64-vs2017]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
