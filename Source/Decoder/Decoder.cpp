@@ -1,6 +1,7 @@
 ﻿#include "Decoder.h"
 #include <algorithm>
 #include <string>
+#include <memory>
 namespace ImageDecoder {
 // .PCX file header.
 #pragma pack(push, 1)
