@@ -14,8 +14,7 @@
 #endif
 #endif
 
-#include <iostream>
-#include <vector>
+#include <stdint.h>
 
 namespace ImageDecoder {
 
@@ -76,25 +75,27 @@ enum class ETextureSourceFormat {
     RGBE8,
 };
 
-struct ImageSurce {
-    EImageFormat type = EImageFormat::Invalid;
-    ERGBFormat rgb_format = ERGBFormat::Invalid;
-    int bit_depth = 8;
+struct ImageInfo {
+    EImageFormat type;
+    ERGBFormat rgb_format;
+    int bit_depth;
+    int width;
+    int height;
 };
 
-struct ImportImage {
-    ImageSurce source;
-    uint8_t* decoded = 0;
-    int64_t decoded_size = 0;
-    ETextureSourceFormat texture_format = ETextureSourceFormat::Invalid;
-    int bit_depth = 8;
-    int num_mips = 0;
-    int width = 0;
-    int height = 0;
+struct ImagePixelData {
+    ETextureSourceFormat texture_format;
+    int bit_depth;
+    uint8_t* data;
+    int width;
+    int height;
+    int size;
 };
 
-bool IMAGE_PORT __cdecl Decode(EImageFormat image_format, const uint8_t* buffer, uint32_t length, ImportImage* image);
+IMAGE_PORT bool __cdecl CreatePixelData(EImageFormat image_format, const uint8_t* buffer, uint32_t length, ImageInfo& info, ImagePixelData*& pixel_data);
 
-EImageFormat IMAGE_PORT __cdecl DetectFormat(const void* compressed_data, int64_t compressed_size);
+IMAGE_PORT void __cdecl ReleasePixelData(ImagePixelData*& pixel_data);
+
+IMAGE_PORT EImageFormat __cdecl DetectFormat(const void* compressed_data, int64_t compressed_size);
 }
 }  // namespace ImageDecoder

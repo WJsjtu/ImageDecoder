@@ -11,6 +11,22 @@
 #include "Wrapper/ImageWrapperBase.h"
 
 namespace ImageDecoder {
+
+struct ImagePixelsMemData {
+    std::shared_ptr<ImagePixelData> pixels;
+    std::vector<uint8_t> data;
+};
+
+std::unordered_map<void*, std::shared_ptr<ImagePixelsMemData>> decoded_image_mmem_data_pool;
+
+std::shared_ptr<ImagePixelsMemData> AllocPixels() {
+    std::shared_ptr<ImagePixelsMemData> result = std::make_shared<ImagePixelsMemData>();
+    std::shared_ptr<ImagePixelData> pixels = std::make_shared<ImagePixelData>();
+    result->pixels = pixels;
+    decoded_image_mmem_data_pool.emplace(pixels.get(), result);
+    return result;
+}
+
 // .PCX file header.
 #pragma pack(push, 1)
 class FPCXFileHeader {
@@ -301,37 +317,31 @@ bool DecompressTGA_helper(const FTGAFileHeader* TGA, uint32_t*& textureData, con
     return true;
 }
 
-bool DecompressTGA(const FTGAFileHeader* TGA, ImportImage& outImage, std::string& warn) {
+bool DecompressTGA(const FTGAFileHeader* TGA, std::shared_ptr<ImagePixelsMemData>& PixelsMemData, std::string& warn) {
     if (TGA->colorMapType == 1 && TGA->imageTypeCode == 1 && TGA->bitsPerPixel == 8) {
+        PixelsMemData = AllocPixels();
         // Notes: The Scaleform GFx exporter (dll) strips all font glyphs into a single 8-bit texture.
         // The targa format uses this for a palette index; GFx uses a palette of (i,i,i,i) so the index
         // is also the alpha value.
         //
         // We store the image as PF_G8, where it will be used as alpha in the Glyph shader.
-        outImage.width = TGA->width;
-        outImage.height = TGA->height;
-        outImage.texture_format = ETextureSourceFormat::G8;
-        outImage.bit_depth = 8;
-        if (outImage.decoded) {
-            delete[] outImage.decoded;
-            outImage.decoded = nullptr;
-            outImage.decoded_size = 0;
-        }
-        outImage.decoded = new uint8_t[outImage.width * outImage.height * 1];
-        outImage.decoded_size = outImage.width * outImage.height * 1;
+        PixelsMemData->pixels->width = TGA->width;
+        PixelsMemData->pixels->height = TGA->height;
+        PixelsMemData->pixels->texture_format = ETextureSourceFormat::G8;
+        PixelsMemData->pixels->bit_depth = 8;
+        PixelsMemData->pixels->bit_depth = 8;
+        PixelsMemData->data.resize(TGA->width * TGA->height * 1);
+        PixelsMemData->pixels->data = PixelsMemData->data.data();
+        PixelsMemData->pixels->size = PixelsMemData->data.size();
     } else if (TGA->colorMapType == 0 && TGA->imageTypeCode == 3 && TGA->bitsPerPixel == 8) {
         // standard grayscale images
-        outImage.width = TGA->width;
-        outImage.height = TGA->height;
-        outImage.texture_format = ETextureSourceFormat::G8;
-        outImage.bit_depth = 8;
-        if (outImage.decoded) {
-            delete[] outImage.decoded;
-            outImage.decoded = nullptr;
-            outImage.decoded_size = 0;
-        }
-        outImage.decoded = new uint8_t[outImage.width * outImage.height * 1];
-        outImage.decoded_size = outImage.width * outImage.height * 1;
+        PixelsMemData->pixels->width = TGA->width;
+        PixelsMemData->pixels->height = TGA->height;
+        PixelsMemData->pixels->texture_format = ETextureSourceFormat::G8;
+        PixelsMemData->pixels->bit_depth = 8;
+        PixelsMemData->data.resize(TGA->width * TGA->height * 1);
+        PixelsMemData->pixels->data = PixelsMemData->data.data();
+        PixelsMemData->pixels->size = PixelsMemData->data.size();
     } else {
         if (TGA->imageTypeCode == 10)  // 10 = RLE compressed
         {
@@ -346,26 +356,22 @@ bool DecompressTGA(const FTGAFileHeader* TGA, ImportImage& outImage, std::string
             }
         }
 
-        outImage.width = TGA->width;
-        outImage.height = TGA->height;
-        outImage.texture_format = ETextureSourceFormat::BGRA8;
-        outImage.bit_depth = 8;
-        if (outImage.decoded) {
-            delete[] outImage.decoded;
-            outImage.decoded = nullptr;
-            outImage.decoded_size = 0;
-        }
-        outImage.decoded = new uint8_t[outImage.width * outImage.height * 4];
-        outImage.decoded_size = outImage.width * outImage.height * 4;
+        PixelsMemData->pixels->width = TGA->width;
+        PixelsMemData->pixels->height = TGA->height;
+        PixelsMemData->pixels->texture_format = ETextureSourceFormat::BGRA8;
+        PixelsMemData->pixels->bit_depth = 8;
+        PixelsMemData->data.resize(TGA->width * TGA->height * 4);
+        PixelsMemData->pixels->data = PixelsMemData->data.data();
+        PixelsMemData->pixels->size = PixelsMemData->data.size();
     }
 
-    size_t TextureDataSize = outImage.decoded_size;
-    uint32_t* TextureData = (uint32_t*)outImage.decoded;
+    size_t TextureDataSize = PixelsMemData->data.size();
+    uint32_t* TextureData = (uint32_t*)PixelsMemData->pixels->data;
 
     return DecompressTGA_helper(TGA, TextureData, static_cast<int>(TextureDataSize), warn);
 }
 
-bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t length, std::string& warn, ImportImage& outImage) {
+bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t length, ImageInfo& info, std::shared_ptr<ImagePixelsMemData>& PixelsMemData, std::string& warn) {
     //
     // PNG
     //
@@ -376,9 +382,9 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             ETextureSourceFormat textureFormat = ETextureSourceFormat::Invalid;
             int bitDepth = pngImageWrapper->GetBitDepth();
             ERGBFormat format = pngImageWrapper->GetFormat();
-            outImage.source.type = EImageFormat::PNG;
-            outImage.source.rgb_format = format;
-            outImage.source.bit_depth = bitDepth;
+            info.type = EImageFormat::PNG;
+            info.rgb_format = format;
+            info.bit_depth = bitDepth;
 
             if (format == ERGBFormat::Gray) {
                 if (bitDepth <= 8) {
@@ -407,25 +413,20 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
                 return false;
             }
 
-            outImage.width = pngImageWrapper->GetWidth();
-            outImage.height = pngImageWrapper->GetHeight();
-            outImage.texture_format = textureFormat;
-            outImage.bit_depth = bitDepth;
+            PixelsMemData = AllocPixels();
+            info.width = PixelsMemData->pixels->width = pngImageWrapper->GetWidth();
+            info.height = PixelsMemData->pixels->height = pngImageWrapper->GetHeight();
+            PixelsMemData->pixels->texture_format = textureFormat;
+            PixelsMemData->pixels->bit_depth = bitDepth;
 
-            std::vector<uint8_t> decoded;
-            if (pngImageWrapper->GetRaw(format, bitDepth, decoded)) {
-                if (outImage.decoded) {
-                    delete[] outImage.decoded;
-                    outImage.decoded_size = 0;
-                }
-                outImage.decoded = new uint8_t[decoded.size()];
-                outImage.decoded_size = decoded.size();
-                memcpy(outImage.decoded, decoded.data(), decoded.size());
-            } else {
+            if (!pngImageWrapper->GetRaw(format, bitDepth, PixelsMemData->data)) {
+                decoded_image_mmem_data_pool.erase(PixelsMemData->pixels.get());
+                PixelsMemData = nullptr;
                 warn = "Failed to decode PNG.";
                 return false;
             }
-
+            PixelsMemData->pixels->data = PixelsMemData->data.data();
+            PixelsMemData->pixels->size = PixelsMemData->data.size();
             return true;
         }
     }
@@ -440,9 +441,9 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             ETextureSourceFormat textureFormat = ETextureSourceFormat::Invalid;
             int bitDepth = jpegImageWrapper->GetBitDepth();
             ERGBFormat format = jpegImageWrapper->GetFormat();
-            outImage.source.type = EImageFormat::JPEG;
-            outImage.source.rgb_format = format;
-            outImage.source.bit_depth = bitDepth;
+            info.type = EImageFormat::JPEG;
+            info.rgb_format = format;
+            info.bit_depth = bitDepth;
 
             if (format == ERGBFormat::Gray) {
                 if (bitDepth <= 8) {
@@ -471,24 +472,20 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
                 return false;
             }
 
-            outImage.width = jpegImageWrapper->GetWidth();
-            outImage.height = jpegImageWrapper->GetHeight();
-            outImage.texture_format = textureFormat;
-            outImage.bit_depth = bitDepth;
+            PixelsMemData = AllocPixels();
+            info.width = PixelsMemData->pixels->width = jpegImageWrapper->GetWidth();
+            info.height = PixelsMemData->pixels->height = jpegImageWrapper->GetHeight();
+            PixelsMemData->pixels->texture_format = textureFormat;
+            PixelsMemData->pixels->bit_depth = bitDepth;
 
-            std::vector<uint8_t> decoded;
-            if (!jpegImageWrapper->GetRaw(format, bitDepth, decoded)) {
+            if (!jpegImageWrapper->GetRaw(format, bitDepth, PixelsMemData->data)) {
+                decoded_image_mmem_data_pool.erase(PixelsMemData->pixels.get());
+                PixelsMemData = nullptr;
                 warn = "Failed to decode JPEG.";
                 return false;
             }
-            if (outImage.decoded) {
-                delete[] outImage.decoded;
-                outImage.decoded = nullptr;
-                outImage.decoded_size = 0;
-            }
-            outImage.decoded = new uint8_t[decoded.size()];
-            outImage.decoded_size = decoded.size();
-            memcpy(outImage.decoded, decoded.data(), decoded.size());
+            PixelsMemData->pixels->data = PixelsMemData->data.data();
+            PixelsMemData->pixels->size = PixelsMemData->data.size();
             return true;
         }
     }
@@ -506,9 +503,9 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             ETextureSourceFormat textureFormat = ETextureSourceFormat::Invalid;
             int bitDepth = exrImageWrapper->GetBitDepth();
             ERGBFormat format = exrImageWrapper->GetFormat();
-            outImage.source.type = EImageFormat::EXR;
-            outImage.source.rgb_format = format;
-            outImage.source.bit_depth = bitDepth;
+            info.type = EImageFormat::EXR;
+            info.rgb_format = format;
+            info.bit_depth = bitDepth;
 
             if (format == ERGBFormat::RGBA && bitDepth == 16) {
                 textureFormat = ETextureSourceFormat::RGBA16F;
@@ -520,25 +517,20 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
                 return false;
             }
 
-            outImage.width = width;
-            outImage.height = height;
-            outImage.texture_format = textureFormat;
-            outImage.bit_depth = bitDepth;
+            PixelsMemData = AllocPixels();
+            info.width = PixelsMemData->pixels->width = width;
+            info.height = PixelsMemData->pixels->height = height;
+            PixelsMemData->pixels->texture_format = textureFormat;
+            PixelsMemData->pixels->bit_depth = bitDepth;
 
-            std::vector<uint8_t> decoded;
-            if (!exrImageWrapper->GetRaw(format, bitDepth, decoded)) {
+            if (!exrImageWrapper->GetRaw(format, bitDepth, PixelsMemData->data)) {
+                decoded_image_mmem_data_pool.erase(PixelsMemData->pixels.get());
+                PixelsMemData = nullptr;
                 warn = "Failed to decode EXR.";
                 return false;
             }
-            if (outImage.decoded) {
-                delete[] outImage.decoded;
-                outImage.decoded = nullptr;
-                outImage.decoded_size = 0;
-            }
-            outImage.decoded = new uint8_t[decoded.size()];
-            outImage.decoded_size = decoded.size();
-            memcpy(outImage.decoded, decoded.data(), decoded.size());
-
+            PixelsMemData->pixels->data = PixelsMemData->data.data();
+            PixelsMemData->pixels->size = PixelsMemData->data.size();
             return true;
         }
     }
@@ -551,27 +543,25 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
         if (bmpImageWrapper && bmpImageWrapper->SetCompressed(buffer, length)) {
             int bitDepth = bmpImageWrapper->GetBitDepth();
             ERGBFormat format = bmpImageWrapper->GetFormat();
-            outImage.source.type = EImageFormat::BMP;
-            outImage.source.rgb_format = format;
-            outImage.source.bit_depth = bitDepth;
-            outImage.width = bmpImageWrapper->GetWidth();
-            outImage.height = bmpImageWrapper->GetHeight();
-            outImage.texture_format = ETextureSourceFormat::BGRA8;
-            outImage.bit_depth = bmpImageWrapper->GetBitDepth();
+            info.type = EImageFormat::BMP;
+            info.rgb_format = format;
+            info.bit_depth = bitDepth;
+
+            PixelsMemData = AllocPixels();
+            info.width = PixelsMemData->pixels->width = bmpImageWrapper->GetWidth();
+            info.height = PixelsMemData->pixels->height = bmpImageWrapper->GetHeight();
+            PixelsMemData->pixels->texture_format = ETextureSourceFormat::BGRA8;
+            PixelsMemData->pixels->bit_depth = bmpImageWrapper->GetBitDepth();
             std::vector<uint8_t> decoded;
-            if (bmpImageWrapper->GetRaw(bmpImageWrapper->GetFormat(), bmpImageWrapper->GetBitDepth(), decoded)) {
-                if (outImage.decoded) {
-                    delete[] outImage.decoded;
-                    outImage.decoded = nullptr;
-                    outImage.decoded_size = 0;
-                }
-                outImage.decoded = new uint8_t[decoded.size()];
-                outImage.decoded_size = decoded.size();
-                memcpy(outImage.decoded, decoded.data(), decoded.size());
-                return true;
-            } else {
+            if (!bmpImageWrapper->GetRaw(bmpImageWrapper->GetFormat(), bmpImageWrapper->GetBitDepth(), PixelsMemData->data)) {
+                decoded_image_mmem_data_pool.erase(PixelsMemData->pixels.get());
+                PixelsMemData = nullptr;
+                warn = "Failed to decode BMP.";
                 return false;
             }
+            PixelsMemData->pixels->data = PixelsMemData->data.data();
+            PixelsMemData->pixels->size = PixelsMemData->data.size();
+            return true;
         }
     }
 
@@ -593,22 +583,19 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             int NewV = PCX->yMax + 1 - PCX->yMin;
 
             if (PCX->numPlanes == 1 && PCX->bitsPerPixel == 8) {
-                outImage.source.type = EImageFormat::PCX;
-                outImage.source.rgb_format = ERGBFormat::BGRA;
-                outImage.source.bit_depth = 8;
+                info.type = EImageFormat::PCX;
+                info.rgb_format = ERGBFormat::BGRA;
+                info.bit_depth = 8;
                 // Set texture properties.
-                outImage.width = NewU;
-                outImage.height = NewV;
-                outImage.texture_format = ETextureSourceFormat::BGRA8;
-                outImage.bit_depth = 8;
-                if (outImage.decoded) {
-                    delete[] outImage.decoded;
-                    outImage.decoded = nullptr;
-                    outImage.decoded_size = 0;
-                }
-                outImage.decoded = new uint8_t[outImage.width * outImage.height * 4];
-                outImage.decoded_size = outImage.width * outImage.height * 4;
-                FColor* DestPtr = (FColor*)outImage.decoded;
+                PixelsMemData = AllocPixels();
+                info.width = PixelsMemData->pixels->width = NewU;
+                info.height = PixelsMemData->pixels->height = NewV;
+                PixelsMemData->pixels->texture_format = ETextureSourceFormat::BGRA8;
+                PixelsMemData->pixels->bit_depth = 8;
+                PixelsMemData->data.resize(NewU * NewV * 4);
+                PixelsMemData->pixels->data = PixelsMemData->data.data();
+                PixelsMemData->pixels->size = PixelsMemData->data.size();
+                FColor* DestPtr = (FColor*)PixelsMemData->pixels->data;
 
                 // Import the palette.
                 uint8_t* PCXPalette = (uint8_t*)(buffer + length - 256 * 3);
@@ -638,26 +625,21 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
                         *DestPtr++ = Palette[Color];
                 }
             } else if (PCX->numPlanes == 3 && PCX->bitsPerPixel == 8) {
-                outImage.source.type = EImageFormat::PCX;
-                outImage.source.rgb_format = ERGBFormat::BGRA;
-                outImage.source.bit_depth = 8;
+                info.type = EImageFormat::PCX;
+                info.rgb_format = ERGBFormat::BGRA;
+                info.bit_depth = 8;
                 // Set texture properties.
-                outImage.width = NewU;
-                outImage.height = NewV;
-                outImage.texture_format = ETextureSourceFormat::BGRA8;
-                outImage.bit_depth = 8;
-                if (outImage.decoded) {
-                    delete[] outImage.decoded;
-                    outImage.decoded = nullptr;
-                    outImage.decoded_size = 0;
-                }
-                outImage.decoded = new uint8_t[outImage.width * outImage.height * 4];
-                outImage.decoded_size = outImage.width * outImage.height * 4;
-
-                uint8_t* Dest = outImage.decoded;
-
+                PixelsMemData = AllocPixels();
+                info.width = PixelsMemData->pixels->width = NewU;
+                info.height = PixelsMemData->pixels->height = NewV;
+                PixelsMemData->pixels->texture_format = ETextureSourceFormat::BGRA8;
+                PixelsMemData->pixels->bit_depth = 8;
                 // Doing a memset to make sure the alpha channel is set to 0xff since we only have 3 color planes.
-                memset(Dest, 0xff, NewU * NewV * 4);
+                PixelsMemData->data.resize(NewU * NewV * 4, 0xff);
+                PixelsMemData->pixels->data = PixelsMemData->data.data();
+                PixelsMemData->pixels->size = PixelsMemData->data.size();
+
+                uint8_t* Dest = PixelsMemData->pixels->data;
 
                 // Copy upside-down scanlines.
                 buffer += 128;
@@ -708,25 +690,51 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
         if (length >= sizeof(FTGAFileHeader) && ((TGA->colorMapType == 0 && TGA->imageTypeCode == 2) ||
                                                  // ImageTypeCode 3 is greyscale
                                                  (TGA->colorMapType == 0 && TGA->imageTypeCode == 3) || (TGA->colorMapType == 0 && TGA->imageTypeCode == 10) || (TGA->colorMapType == 1 && TGA->imageTypeCode == 1 && TGA->bitsPerPixel == 8))) {
-            const bool bResult = DecompressTGA(TGA, outImage, warn);
-            outImage.source.type = EImageFormat::TGA;
-            outImage.source.rgb_format = outImage.texture_format == ETextureSourceFormat::BGRA8 ? ERGBFormat::BGRA : ERGBFormat::Gray;
-            outImage.source.bit_depth = outImage.bit_depth;
+            const bool bResult = DecompressTGA(TGA, PixelsMemData, warn);
+            if (!bResult) {
+                decoded_image_mmem_data_pool.erase(PixelsMemData->pixels.get());
+                PixelsMemData = nullptr;
+            } else {
+                info.type = EImageFormat::TGA;
+                info.rgb_format = PixelsMemData->pixels->texture_format == ETextureSourceFormat::BGRA8 ? ERGBFormat::BGRA : ERGBFormat::Gray;
+                info.bit_depth = PixelsMemData->pixels->bit_depth;
+                info.width = PixelsMemData->pixels->width;
+                info.height = PixelsMemData->pixels->height;
+            }
             return bResult;
         }
     }
     return false;
 }
 
-bool __cdecl Decode(EImageFormat imageFormat, const uint8_t* buffer, uint32_t length, ImportImage* image) {
+bool __cdecl CreatePixelData(EImageFormat imageFormat, const uint8_t* buffer, uint32_t length, ImageInfo& info, ImagePixelData*& pixel_data) {
     std::string warnStr;
     std::vector<char> warn;
-    bool result = DecodeImage(imageFormat, buffer, length, warnStr, *image);
+    std::shared_ptr<ImagePixelsMemData> PixelsMemData;
+    bool result = DecodeImage(imageFormat, buffer, length, info, PixelsMemData, warnStr);
     warn.clear();
     for (auto chr : warnStr) {
         warn.push_back(chr);
     }
-    return result;
+    if (result && PixelsMemData) {
+        pixel_data = PixelsMemData->pixels.get();
+        return true;
+    } else if (PixelsMemData) {
+        decoded_image_mmem_data_pool.erase(PixelsMemData->pixels.get());
+        PixelsMemData = nullptr;
+    }
+    pixel_data = nullptr;
+    return false;
+}
+
+void __cdecl ReleasePixelData(ImagePixelData*& pixel_data) {
+    if (!pixel_data) {
+        return;
+    }
+    if (decoded_image_mmem_data_pool.find(pixel_data) != decoded_image_mmem_data_pool.end()) {
+        decoded_image_mmem_data_pool.erase(pixel_data);
+        pixel_data = nullptr;
+    }
 }
 
 static const uint8_t IMAGE_MAGIC_PNG[] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};

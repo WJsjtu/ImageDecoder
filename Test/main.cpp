@@ -24,9 +24,11 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     // declaration of function pointer
-    bool(__cdecl * DecodeFunc)(ImageDecoder::EImageFormat, const uint8_t*, uint32_t, ImageDecoder::ImportImage*);
-    auto DecodeFuncPtr = (bool(__cdecl*)(ImageDecoder::EImageFormat, const uint8_t*, uint32_t, ImageDecoder::ImportImage*))GetProcAddress(DllHandle, (LPCSTR) "Decode");
-    if (!DecodeFuncPtr) {
+    bool(__cdecl * CreatePixelDataFunc)(ImageDecoder::EImageFormat, const uint8_t*, uint32_t, ImageDecoder::ImageInfo&, ImageDecoder::ImagePixelData*&);
+    void(__cdecl * ReleasePixelDataFunc)(ImageDecoder::ImagePixelData*&);
+    auto CreatePixelDataFuncPtr = (bool*(__cdecl*)(ImageDecoder::EImageFormat, const uint8_t*, uint32_t, ImageDecoder::ImageInfo&, ImageDecoder::ImagePixelData*&))GetProcAddress(DllHandle, (LPCSTR) "CreatePixelData");
+    auto ReleasePixelDataFuncPtr = (void(__cdecl*)(ImageDecoder::ImagePixelData*&))GetProcAddress(DllHandle, (LPCSTR) "ReleasePixelData");
+    if (!CreatePixelDataFuncPtr || !ReleasePixelDataFuncPtr) {
         return -1;
     }
     if (argc < 2) {
@@ -65,9 +67,9 @@ int main(int argc, char* argv[]) {
     if (format == ImageDecoder::EImageFormat::Invalid) {
         return -1;
     }
-    ImageDecoder::ImportImage image;
-    bool success = DecodeFuncPtr(format, dataBinary.data(), dataBinary.size(), &image);
-    if (!success) {
+    ImageDecoder::ImagePixelData* pixel_data;
+    ImageDecoder::ImageInfo info;
+    if (!CreatePixelDataFuncPtr(format, dataBinary.data(), dataBinary.size(), info, pixel_data)) {
         return -1;
     }
 
@@ -99,47 +101,45 @@ int main(int argc, char* argv[]) {
         bool bNeedPremultiplyAlpha = false;
         bool bUseMipMap = false;
         bool bEnableCompress = true;
-        uint32_t numMips = 0;
         std::string fileType;
         std::string originalPath;
         bool bIsCommonPNGorJPGFile = false;
     };
     std::shared_ptr<Texture> exportTexture = std::make_shared<Texture>();
     std::vector<uint8_t> data;
-    data.resize(image.decoded_size);
-    memcpy(data.data(), image.decoded, data.size());
+    data.resize(pixel_data->size);
+    memcpy(data.data(), pixel_data->data, data.size());
     exportTexture->decoded = data;
-    exportTexture->width = image.width;
-    exportTexture->height = image.height;
-    exportTexture->numMips = image.num_mips;
+    exportTexture->width = pixel_data->width;
+    exportTexture->height = pixel_data->height;
     exportTexture->bEnableCompress = false;
-    if ((image.source.type == ImageDecoder::EImageFormat::PNG || image.source.type == ImageDecoder::EImageFormat::JPEG) && image.source.rgb_format == ImageDecoder::ERGBFormat::RGBA && image.source.bit_depth == 8) {
+    if ((info.type == ImageDecoder::EImageFormat::PNG || info.type == ImageDecoder::EImageFormat::JPEG) && info.rgb_format == ImageDecoder::ERGBFormat::RGBA && info.bit_depth == 8) {
         exportTexture->bIsCommonPNGorJPGFile = true;
         exportTexture->bEnableCompress = true;
         exportTexture->pixelFormat = Texture::EPixelFormat::RGBA8;
     } else {
-        if (image.texture_format == ImageDecoder::ETextureSourceFormat::RGBA8 || image.texture_format == ImageDecoder::ETextureSourceFormat::RGBA16F) {
-            if (image.texture_format == ImageDecoder::ETextureSourceFormat::RGBA8) {
+        if (pixel_data->texture_format == ImageDecoder::ETextureSourceFormat::RGBA8 || pixel_data->texture_format == ImageDecoder::ETextureSourceFormat::RGBA16F) {
+            if (pixel_data->texture_format == ImageDecoder::ETextureSourceFormat::RGBA8) {
                 exportTexture->pixelFormat = Texture::EPixelFormat::RGBA8;
             } else {
                 exportTexture->pixelFormat = Texture::EPixelFormat::RGBA16F;
             }
-        } else if (image.texture_format == ImageDecoder::ETextureSourceFormat::RGBA16) {
+        } else if (pixel_data->texture_format == ImageDecoder::ETextureSourceFormat::RGBA16) {
             exportTexture = nullptr;
-        } else if (image.texture_format == ImageDecoder::ETextureSourceFormat::G8) {
+        } else if (pixel_data->texture_format == ImageDecoder::ETextureSourceFormat::G8) {
             std::vector<uint8_t> data;
-            data.resize(image.decoded_size * 4);
+            data.resize(pixel_data->size * 4);
             for (int i = 0; i < data.size() / 4; i++) {
-                char val = image.decoded[i];
+                char val = pixel_data->data[i];
                 data[4 * i] = data[4 * i + 1] = data[4 * i + 2] = val;
                 data[4 * i + 3] = 255;
             }
             exportTexture->decoded = data;
             exportTexture->pixelFormat = Texture::EPixelFormat::RGBA8;
-        } else if (image.texture_format == ImageDecoder::ETextureSourceFormat::BGRA8) {
+        } else if (pixel_data->texture_format == ImageDecoder::ETextureSourceFormat::BGRA8) {
             std::vector<uint8_t> data;
-            data.resize(image.decoded_size);
-            memcpy(data.data(), image.decoded, data.size());
+            data.resize(pixel_data->size);
+            memcpy(data.data(), pixel_data->data, data.size());
             for (int i = 0; i < data.size() / 4; i++) {
                 char tmp = data[4 * i];
                 data[4 * i] = data[4 * i + 2];
@@ -151,6 +151,7 @@ int main(int argc, char* argv[]) {
             exportTexture = nullptr;
         }
     }
+    ReleasePixelDataFuncPtr(pixel_data);
     if (!exportTexture || exportTexture->pixelFormat != Texture::EPixelFormat::RGBA8) {
         return -1;
     }
