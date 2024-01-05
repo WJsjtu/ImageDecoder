@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Wrapper/ImageWrapperBase.h"
+
 namespace ImageDecoder {
 using tjhandle = void*;
 

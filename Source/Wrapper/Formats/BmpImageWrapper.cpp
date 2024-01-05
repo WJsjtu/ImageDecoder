@@ -2,6 +2,7 @@
 #include <cmath>
 #include "Utils/Utils.h"
 #include "Wrapper/BmpImageSupport.h"
+
 namespace ImageDecoder {
 /**
  * BMP image wrapper class.
@@ -59,7 +60,7 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat inFormat, const int in
 
         // If the number for color palette entries is 0, we need to default to 2^biBitCount entries.  In this case 2^8 = 256
         int clrPaletteCount = bmhdr->biClrUsed ? bmhdr->biClrUsed : 256;
-        Vector<FColor> palette;
+        std::vector<FColor> palette;
 
         for (int i = 0; i < clrPaletteCount; i++) {
             FColor color;

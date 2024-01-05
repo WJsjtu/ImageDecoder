@@ -2,9 +2,8 @@
 #include "Utils/Utils.h"
 
 namespace ImageDecoder {
-
-bool IImageWrapper::GetRaw(const ERGBFormat inFormat, int inBitDepth, Vector<uint8_t>& outRawData) {
-    Vector<uint8_t> tmpRawData;
+bool IImageWrapper::GetRaw(const ERGBFormat inFormat, int inBitDepth, std::vector<uint8_t>& outRawData) {
+    std::vector<uint8_t> tmpRawData;
     if (GetRaw(inFormat, inBitDepth, tmpRawData)) {
         if (tmpRawData.size() != tmpRawData.size()) {
             std::cerr << "Tried to get " << GetWidth() << "x" << GetHeight() << " " << inBitDepth << "bpp image with format " << static_cast<int8_t>(inFormat) << " into 32-bit TArray (%" << tmpRawData.size() << " bytes)" << std::endl;
@@ -44,14 +43,14 @@ void FImageWrapperBase::SetError(const char* ErrorMessage) { lastError = ErrorMe
 /* IImageWrapper structors
  *****************************************************************************/
 
-const Vector<uint8_t>& FImageWrapperBase::GetCompressed(int quality) {
+const std::vector<uint8_t>& FImageWrapperBase::GetCompressed(int quality) {
     lastError.clear();
     Compress(quality);
 
     return compressedData;
 }
 
-bool FImageWrapperBase::GetRaw(const ERGBFormat inFormat, int inBitDepth, Vector<uint8_t>& outRawData) {
+bool FImageWrapperBase::GetRaw(const ERGBFormat inFormat, int inBitDepth, std::vector<uint8_t>& outRawData) {
     lastError.clear();
     Uncompress(inFormat, inBitDepth);
 

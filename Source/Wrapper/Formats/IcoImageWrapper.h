@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Wrapper/ImageWrapperBase.h"
+
 namespace ImageDecoder {
 /**
  * ICO implementation of the helper class.
@@ -15,7 +16,7 @@ public:
     virtual void Compress(int quality) override;
     virtual void Uncompress(const ERGBFormat inFormat, int inBitDepth) override;
     virtual bool SetCompressed(const void* inCompressedData, int64_t inCompressedSize) override;
-    virtual bool GetRaw(const ERGBFormat inFormat, int inBitDepth, Vector<uint8_t>& outRawData) override;
+    virtual bool GetRaw(const ERGBFormat inFormat, int inBitDepth, std::vector<uint8_t>& outRawData) override;
 
 protected:
     /**

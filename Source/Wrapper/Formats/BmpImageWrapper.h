@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Wrapper/ImageWrapperBase.h"
+
 namespace ImageDecoder {
 /**
  * BMP implementation of the helper class

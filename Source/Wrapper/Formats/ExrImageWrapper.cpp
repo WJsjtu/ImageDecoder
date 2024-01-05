@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <algorithm>
 #include <cmath>
+
 namespace ImageDecoder {
 typedef half Float16;
 

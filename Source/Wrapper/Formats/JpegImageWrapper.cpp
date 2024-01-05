@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <mutex>
 
+namespace ImageDecoder {
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wshadow"
@@ -22,7 +23,6 @@
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
-namespace ImageDecoder {
 template <class T>
 constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
     return clamp(v, lo, hi, std::less<T>{});

@@ -1,6 +1,7 @@
 ﻿#include "Utils.h"
 
 namespace ImageDecoder {
+
 unsigned CountTrailingZeros(uint32_t n) {
     unsigned bits = 0, x = n;
 

@@ -10,7 +10,6 @@
 #include <setjmp.h>
 
 namespace ImageDecoder {
-
 /**
  * PNG implementation of the helper class.
  *

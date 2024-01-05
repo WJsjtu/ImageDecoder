@@ -11,6 +11,7 @@
 #include "OpenEXR/ImfRgbaFile.h"
 #include "OpenEXR/ImfStdIO.h"
 #include "Wrapper/ImageWrapperBase.h"
+
 namespace ImageDecoder {
 /**
  * OpenEXR implementation of the helper class

@@ -2,13 +2,13 @@
 #include "Utils/Utils.h"
 #include <mutex>
 
+namespace ImageDecoder {
+
 // Disable warning "interaction between '_setjmp' and C++ object destruction is non-portable"
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4611)
 #endif
-
-namespace ImageDecoder {
 
 bool IsLitleEndian() {
     int num = 1;
@@ -432,9 +432,8 @@ void FPngImageWrapper::user_free(png_structp /*png_ptr*/, png_voidp struct_ptr) 
     free(struct_ptr);
 }
 
-}  // namespace ImageDecoder
-
 // Renable warning "interaction between '_setjmp' and C++ object destruction is non-portable"
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
+}  // namespace ImageDecoder

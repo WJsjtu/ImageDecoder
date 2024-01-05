@@ -3,7 +3,6 @@
 #include "Decoder.h"
 
 namespace ImageDecoder {
-
 struct FBitmapFileHeader;
 struct FBitmapInfoHeader;
 

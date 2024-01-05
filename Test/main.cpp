@@ -1,10 +1,11 @@
-#include "GLContext.h"
+﻿#include "GLContext.h"
 #include "Decoder.h"
 #include "GL/glew.h"
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
+#include <Windows.h>
 
 std::string GetFileExtension(const char* file_name) {
     int ext = '.';
@@ -18,6 +19,16 @@ std::string GetFileExtension(const char* file_name) {
 }
 
 int main(int argc, char* argv[]) {
+    auto DllHandle = LoadLibrary("image.dll");
+    if (!DllHandle) {
+        return -1;
+    }
+    // declaration of function pointer
+    bool(__cdecl * DecodeFunc)(ImageDecoder::EImageFormat, const uint8_t*, uint32_t, ImageDecoder::ImportImage*);
+    auto DecodeFuncPtr = (bool(__cdecl*)(ImageDecoder::EImageFormat, const uint8_t*, uint32_t, ImageDecoder::ImportImage*))GetProcAddress(DllHandle, (LPCSTR) "Decode");
+    if (!DecodeFuncPtr) {
+        return -1;
+    }
     if (argc < 2) {
         return -1;
     }
@@ -54,9 +65,8 @@ int main(int argc, char* argv[]) {
     if (format == ImageDecoder::EImageFormat::Invalid) {
         return -1;
     }
-    ImageDecoder::Vector<char> warn;
     ImageDecoder::ImportImage image;
-    bool success = ImageDecoder::DecodeImage(format, dataBinary.data(), dataBinary.size(), true, warn, image);
+    bool success = DecodeFuncPtr(format, dataBinary.data(), dataBinary.size(), &image);
     if (!success) {
         return -1;
     }
@@ -95,39 +105,41 @@ int main(int argc, char* argv[]) {
         bool bIsCommonPNGorJPGFile = false;
     };
     std::shared_ptr<Texture> exportTexture = std::make_shared<Texture>();
-    std::vector<uint8_t> data(image.data.begin(), image.data.end());
+    std::vector<uint8_t> data;
+    data.resize(image.decoded_size);
+    memcpy(data.data(), image.decoded, data.size());
     exportTexture->decoded = data;
     exportTexture->width = image.width;
     exportTexture->height = image.height;
-    exportTexture->numMips = image.numMips;
+    exportTexture->numMips = image.num_mips;
     exportTexture->bEnableCompress = false;
-    if ((image.source.type == ImageDecoder::EImageFormat::PNG || image.source.type == ImageDecoder::EImageFormat::JPEG) && image.source.RGBFormat == ImageDecoder::ERGBFormat::RGBA && image.source.bitDepth == 8) {
+    if ((image.source.type == ImageDecoder::EImageFormat::PNG || image.source.type == ImageDecoder::EImageFormat::JPEG) && image.source.rgb_format == ImageDecoder::ERGBFormat::RGBA && image.source.bit_depth == 8) {
         exportTexture->bIsCommonPNGorJPGFile = true;
         exportTexture->bEnableCompress = true;
         exportTexture->pixelFormat = Texture::EPixelFormat::RGBA8;
     } else {
-        if (image.textureformat == ImageDecoder::ETextureSourceFormat::RGBA8 || image.textureformat == ImageDecoder::ETextureSourceFormat::RGBA16F) {
-            if (image.textureformat == ImageDecoder::ETextureSourceFormat::RGBA8) {
+        if (image.texture_format == ImageDecoder::ETextureSourceFormat::RGBA8 || image.texture_format == ImageDecoder::ETextureSourceFormat::RGBA16F) {
+            if (image.texture_format == ImageDecoder::ETextureSourceFormat::RGBA8) {
                 exportTexture->pixelFormat = Texture::EPixelFormat::RGBA8;
             } else {
                 exportTexture->pixelFormat = Texture::EPixelFormat::RGBA16F;
             }
-        } else if (image.textureformat == ImageDecoder::ETextureSourceFormat::RGBA16) {
+        } else if (image.texture_format == ImageDecoder::ETextureSourceFormat::RGBA16) {
             exportTexture = nullptr;
-        } else if (image.textureformat == ImageDecoder::ETextureSourceFormat::G8) {
+        } else if (image.texture_format == ImageDecoder::ETextureSourceFormat::G8) {
             std::vector<uint8_t> data;
-            data.resize(image.data.size() * 4);
+            data.resize(image.decoded_size * 4);
             for (int i = 0; i < data.size() / 4; i++) {
-                char val = image.data[i];
+                char val = image.decoded[i];
                 data[4 * i] = data[4 * i + 1] = data[4 * i + 2] = val;
                 data[4 * i + 3] = 255;
             }
             exportTexture->decoded = data;
             exportTexture->pixelFormat = Texture::EPixelFormat::RGBA8;
-        } else if (image.textureformat == ImageDecoder::ETextureSourceFormat::BGRA8) {
+        } else if (image.texture_format == ImageDecoder::ETextureSourceFormat::BGRA8) {
             std::vector<uint8_t> data;
-            data.resize(image.data.size());
-            memcpy(data.data(), image.data.data(), data.size());
+            data.resize(image.decoded_size);
+            memcpy(data.data(), image.decoded, data.size());
             for (int i = 0; i < data.size() / 4; i++) {
                 char tmp = data[4 * i];
                 data[4 * i] = data[4 * i + 2];

@@ -1,0 +1,18 @@
+[submodule "ThirdParty/libjpeg-turbo"]
+	path = ThirdParty/libjpeg-turbo
+	url = https://github.com/libjpeg-turbo/libjpeg-turbo.git
+[submodule "ThirdParty/libpng"]
+	path = ThirdParty/libpng
+	url = https://github.com/glennrp/libpng.git
+[submodule "ThirdParty/zlib"]
+	path = ThirdParty/zlib
+	url = https://github.com/madler/zlib.git
+[submodule "ThirdParty/openexr"]
+	path = ThirdParty/openexr
+	url = https://github.com/AcademySoftwareFoundation/openexr.git
+[submodule "ThirdParty/glfw"]
+	path = ThirdParty/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule "ThirdParty/glew-cmake"]
+	path = ThirdParty/glew-cmake
+	url = https://github.com/Perlmint/glew-cmake.git

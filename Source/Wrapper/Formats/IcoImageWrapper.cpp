@@ -3,6 +3,7 @@
 #include "Wrapper/BmpImageSupport.h"
 #include "Wrapper/Formats/BmpImageWrapper.h"
 #include "Wrapper/Formats/PngImageWrapper.h"
+
 namespace ImageDecoder {
 #pragma pack(push, 1)
 struct FIconDirEntry {
@@ -68,7 +69,7 @@ bool FIcoImageWrapper::SetCompressed(const void* inCompressedData, int64_t inCom
     return bResult && LoadICOHeader();  // Fetch the variables from the header info
 }
 
-bool FIcoImageWrapper::GetRaw(const ERGBFormat inFormat, int inBitDepth, Vector<uint8_t>& outRawData) {
+bool FIcoImageWrapper::GetRaw(const ERGBFormat inFormat, int inBitDepth, std::vector<uint8_t>& outRawData) {
     lastError.clear();
     Uncompress(inFormat, inBitDepth);
 
