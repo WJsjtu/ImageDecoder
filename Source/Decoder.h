@@ -89,10 +89,18 @@ struct ImagePixelData {
     uint8_t* data;
     int width;
     int height;
-    int size;
+    int size;  // should equals to width * height * components * bit_depth / 8
 };
 
-IMAGE_PORT bool __cdecl CreatePixelData(EImageFormat image_format, const uint8_t* buffer, uint32_t length, ImageInfo& info, ImagePixelData*& pixel_data);
+enum class ELogLevel { Info, Warning, Error };
+
+typedef void(__cdecl* LogFunc)(ELogLevel, const char*);
+
+IMAGE_PORT void __cdecl SetLogFunction(LogFunc func);
+
+IMAGE_PORT bool __cdecl CreatePixelDataFromFile(EImageFormat image_format, const char* file_name, ImageInfo& info, ImagePixelData*& pixel_data);
+
+IMAGE_PORT bool __cdecl CreatePixelData(EImageFormat image_format, const uint8_t* buffer, uint64_t length, ImageInfo& info, ImagePixelData*& pixel_data);
 
 IMAGE_PORT void __cdecl ReleasePixelData(ImagePixelData*& pixel_data);
 

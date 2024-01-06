@@ -43,4 +43,20 @@ unsigned CountLeadingZeros(uint32_t x) {
     x++;
     return debruijn32[x * 0x076be629 >> 27];
 }
+
+LogFunc global_log_func = nullptr;
+
+void LogMessage(ELogLevel level, const char* msg) {
+    if (global_log_func) {
+        global_log_func(level, msg);
+    } else {
+        if (level == ELogLevel::Info || level == ELogLevel::Warning) {
+            std::cout << msg << std::endl;
+        } else {
+            std::cerr << msg << std::endl;
+        }
+    }
+}
+
+void SetLogMessageFunc(LogFunc func) { global_log_func = func; }
 }  // namespace ImageDecoder

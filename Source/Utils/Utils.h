@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <string>
+#include "Decoder.h"
 
 namespace ImageDecoder {
 
@@ -22,6 +23,10 @@ template <typename T>
 inline constexpr T Align(T val, uint64_t alignment) {
     return (T)(((uint64_t)val + alignment - 1) & ~(alignment - 1));
 }
+
+void LogMessage(ELogLevel, const char*);
+
+void SetLogMessageFunc(LogFunc func);
 
 #define Assert(expr)                                             \
     if (!(expr)) {                                               \

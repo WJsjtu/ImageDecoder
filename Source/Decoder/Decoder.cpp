@@ -9,6 +9,7 @@
 #include "Wrapper/Formats/JpegImageWrapper.h"
 #include "Wrapper/Formats/PngImageWrapper.h"
 #include "Wrapper/ImageWrapperBase.h"
+#include "Utils/Utils.h"
 
 namespace ImageDecoder {
 
@@ -251,7 +252,7 @@ void DecompressTGA_8bpp(const FTGAFileHeader* TGA, uint8_t* textureData) {
     }
 }
 
-bool DecompressTGA_helper(const FTGAFileHeader* TGA, uint32_t*& textureData, const int textureDataSize, std::string& warn) {
+bool DecompressTGA_helper(const FTGAFileHeader* TGA, uint32_t*& textureData, const int textureDataSize) {
     if (TGA->imageTypeCode == 10)  // 10 = RLE compressed
     {
         // RLE compression: CHUNKS: 1 -byte header, high bit 0 = raw, 1 = compressed
@@ -263,7 +264,8 @@ bool DecompressTGA_helper(const FTGAFileHeader* TGA, uint32_t*& textureData, con
         } else if (TGA->bitsPerPixel == 16) {
             DecompressTGA_RLE_16bpp(TGA, textureData);
         } else {
-            warn = "TGA uses an unsupported rle-compressed bit-depth: " + std::to_string(TGA->bitsPerPixel);
+            std::string error = "TGA uses an unsupported rle-compressed bit-depth: " + std::to_string(TGA->bitsPerPixel);
+            LogMessage(ELogLevel::Error, error.data());
             return false;
         }
     } else if (TGA->imageTypeCode == 2)  // 2 = Uncompressed RGB
@@ -275,7 +277,8 @@ bool DecompressTGA_helper(const FTGAFileHeader* TGA, uint32_t*& textureData, con
         } else if (TGA->bitsPerPixel == 24) {
             DecompressTGA_24bpp(TGA, textureData);
         } else {
-            warn = "TGA uses an unsupported bit-depth: " + std::to_string(TGA->bitsPerPixel);
+            std::string error = "TGA uses an unsupported bit-depth: " + std::to_string(TGA->bitsPerPixel);
+            LogMessage(ELogLevel::Error, error.data());
             return false;
         }
     }
@@ -287,7 +290,8 @@ bool DecompressTGA_helper(const FTGAFileHeader* TGA, uint32_t*& textureData, con
     else if (TGA->colorMapType == 0 && TGA->imageTypeCode == 3 && TGA->bitsPerPixel == 8) {
         DecompressTGA_8bpp(TGA, (uint8_t*)textureData);
     } else {
-        warn = "TGA is an unsupported type: " + std::to_string(TGA->imageTypeCode);
+        std::string error = "TGA is an unsupported type: " + std::to_string(TGA->imageTypeCode);
+        LogMessage(ELogLevel::Error, error.data());
         return false;
     }
 
@@ -317,7 +321,7 @@ bool DecompressTGA_helper(const FTGAFileHeader* TGA, uint32_t*& textureData, con
     return true;
 }
 
-bool DecompressTGA(const FTGAFileHeader* TGA, std::shared_ptr<ImagePixelsMemData>& PixelsMemData, std::string& warn) {
+bool DecompressTGA(const FTGAFileHeader* TGA, std::shared_ptr<ImagePixelsMemData>& PixelsMemData) {
     if (TGA->colorMapType == 1 && TGA->imageTypeCode == 1 && TGA->bitsPerPixel == 8) {
         PixelsMemData = AllocPixels();
         // Notes: The Scaleform GFx exporter (dll) strips all font glyphs into a single 8-bit texture.
@@ -346,12 +350,14 @@ bool DecompressTGA(const FTGAFileHeader* TGA, std::shared_ptr<ImagePixelsMemData
         if (TGA->imageTypeCode == 10)  // 10 = RLE compressed
         {
             if (TGA->bitsPerPixel != 32 && TGA->bitsPerPixel != 24 && TGA->bitsPerPixel != 16) {
-                warn = "TGA uses an unsupported rle-compressed bit-depth: " + std::to_string(TGA->bitsPerPixel);
+                std::string error = "TGA uses an unsupported rle-compressed bit-depth: " + std::to_string(TGA->bitsPerPixel);
+                LogMessage(ELogLevel::Error, error.data());
                 return false;
             }
         } else {
             if (TGA->bitsPerPixel != 32 && TGA->bitsPerPixel != 16 && TGA->bitsPerPixel != 24) {
-                warn = "TGA uses an unsupported bit-depth: " + std::to_string(TGA->bitsPerPixel);
+                std::string error = "TGA uses an unsupported bit-depth: " + std::to_string(TGA->bitsPerPixel);
+                LogMessage(ELogLevel::Error, error.data());
                 return false;
             }
         }
@@ -368,10 +374,10 @@ bool DecompressTGA(const FTGAFileHeader* TGA, std::shared_ptr<ImagePixelsMemData
     size_t TextureDataSize = PixelsMemData->data.size();
     uint32_t* TextureData = (uint32_t*)PixelsMemData->pixels->data;
 
-    return DecompressTGA_helper(TGA, TextureData, static_cast<int>(TextureDataSize), warn);
+    return DecompressTGA_helper(TGA, TextureData, static_cast<int>(TextureDataSize));
 }
 
-bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t length, ImageInfo& info, std::shared_ptr<ImagePixelsMemData>& PixelsMemData, std::string& warn) {
+bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t length, ImageInfo& info, std::shared_ptr<ImagePixelsMemData>& PixelsMemData) {
     //
     // PNG
     //
@@ -409,7 +415,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             }
 
             if (textureFormat == ETextureSourceFormat::Invalid) {
-                warn = "PNG file contains data in an unsupported format.";
+                LogMessage(ELogLevel::Error, "PNG file contains data in an unsupported format.");
                 return false;
             }
 
@@ -422,7 +428,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             if (!pngImageWrapper->GetRaw(format, bitDepth, PixelsMemData->data)) {
                 decoded_image_mmem_data_pool.erase(PixelsMemData->pixels.get());
                 PixelsMemData = nullptr;
-                warn = "Failed to decode PNG.";
+                LogMessage(ELogLevel::Error, "Failed to decode PNG.");
                 return false;
             }
             PixelsMemData->pixels->data = PixelsMemData->data.data();
@@ -468,7 +474,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             }
 
             if (textureFormat == ETextureSourceFormat::Invalid) {
-                warn = "JPEG file contains data in an unsupported format.";
+                LogMessage(ELogLevel::Error, "JPEG file contains data in an unsupported format.");
                 return false;
             }
 
@@ -481,7 +487,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             if (!jpegImageWrapper->GetRaw(format, bitDepth, PixelsMemData->data)) {
                 decoded_image_mmem_data_pool.erase(PixelsMemData->pixels.get());
                 PixelsMemData = nullptr;
-                warn = "Failed to decode JPEG.";
+                LogMessage(ELogLevel::Error, "Failed to decode JPEG.");
                 return false;
             }
             PixelsMemData->pixels->data = PixelsMemData->data.data();
@@ -513,7 +519,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             }
 
             if (textureFormat == ETextureSourceFormat::Invalid) {
-                warn = "EXR file contains data in an unsupported format.";
+                LogMessage(ELogLevel::Error, "EXR file contains data in an unsupported format.");
                 return false;
             }
 
@@ -526,7 +532,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             if (!exrImageWrapper->GetRaw(format, bitDepth, PixelsMemData->data)) {
                 decoded_image_mmem_data_pool.erase(PixelsMemData->pixels.get());
                 PixelsMemData = nullptr;
-                warn = "Failed to decode EXR.";
+                LogMessage(ELogLevel::Error, "Failed to decode EXR.");
                 return false;
             }
             PixelsMemData->pixels->data = PixelsMemData->data.data();
@@ -556,7 +562,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
             if (!bmpImageWrapper->GetRaw(bmpImageWrapper->GetFormat(), bmpImageWrapper->GetBitDepth(), PixelsMemData->data)) {
                 decoded_image_mmem_data_pool.erase(PixelsMemData->pixels.get());
                 PixelsMemData = nullptr;
-                warn = "Failed to decode BMP.";
+                LogMessage(ELogLevel::Error, "Failed to decode BMP.");
                 return false;
             }
             PixelsMemData->pixels->data = PixelsMemData->data.data();
@@ -673,7 +679,8 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
                     }
                 }
             } else {
-                warn = "PCX uses an unsupported format (" + std::to_string(PCX->numPlanes) + "/" + std::to_string(PCX->bitsPerPixel) + ")";
+                std::string error = "PCX uses an unsupported format (" + std::to_string(PCX->numPlanes) + "/" + std::to_string(PCX->bitsPerPixel) + ")";
+                LogMessage(ELogLevel::Error, error.data());
                 return false;
             }
 
@@ -690,7 +697,7 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
         if (length >= sizeof(FTGAFileHeader) && ((TGA->colorMapType == 0 && TGA->imageTypeCode == 2) ||
                                                  // ImageTypeCode 3 is greyscale
                                                  (TGA->colorMapType == 0 && TGA->imageTypeCode == 3) || (TGA->colorMapType == 0 && TGA->imageTypeCode == 10) || (TGA->colorMapType == 1 && TGA->imageTypeCode == 1 && TGA->bitsPerPixel == 8))) {
-            const bool bResult = DecompressTGA(TGA, PixelsMemData, warn);
+            const bool bResult = DecompressTGA(TGA, PixelsMemData);
             if (!bResult) {
                 decoded_image_mmem_data_pool.erase(PixelsMemData->pixels.get());
                 PixelsMemData = nullptr;
@@ -707,15 +714,27 @@ bool DecodeImage(EImageFormat imageFormat, const uint8_t* buffer, uint32_t lengt
     return false;
 }
 
-bool __cdecl CreatePixelData(EImageFormat imageFormat, const uint8_t* buffer, uint32_t length, ImageInfo& info, ImagePixelData*& pixel_data) {
-    std::string warnStr;
-    std::vector<char> warn;
-    std::shared_ptr<ImagePixelsMemData> PixelsMemData;
-    bool result = DecodeImage(imageFormat, buffer, length, info, PixelsMemData, warnStr);
-    warn.clear();
-    for (auto chr : warnStr) {
-        warn.push_back(chr);
+void __cdecl SetLogFunction(LogFunc func) { SetLogMessageFunc(func); }
+
+bool __cdecl CreatePixelDataFromFile(EImageFormat image_format, const char* file_name, ImageInfo& info, ImagePixelData*& pixel_data) {
+    std::vector<uint8_t> dataBinary;
+    std::ifstream fileStream(file_name, std::ios_base::in | std::ios::binary);
+    if (fileStream) {
+        fileStream.unsetf(std::ios::skipws);
+        fileStream.seekg(0, std::ios::end);
+        dataBinary.resize(static_cast<size_t>(fileStream.tellg()));
+        fileStream.seekg(0, std::ios::beg);
+        fileStream.read(reinterpret_cast<char*>(dataBinary.data()), dataBinary.size());
+        dataBinary.resize(static_cast<size_t>(fileStream.gcount()));
+        return CreatePixelData(image_format, dataBinary.data(), dataBinary.size(), info, pixel_data);
+    } else {
+        return false;
     }
+}
+
+bool __cdecl CreatePixelData(EImageFormat imageFormat, const uint8_t* buffer, uint64_t length, ImageInfo& info, ImagePixelData*& pixel_data) {
+    std::shared_ptr<ImagePixelsMemData> PixelsMemData;
+    bool result = DecodeImage(imageFormat, buffer, length, info, PixelsMemData);
     if (result && PixelsMemData) {
         pixel_data = PixelsMemData->pixels.get();
         return true;

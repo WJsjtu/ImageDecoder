@@ -11,7 +11,7 @@ namespace ImageDecoder {
 
 FBmpImageWrapper::FBmpImageWrapper(bool bInHasHeader, bool bInHalfHeight) : FImageWrapperBase(), bHasHeader(bInHasHeader), bHalfHeight(bInHalfHeight) {}
 
-void FBmpImageWrapper::Compress(int quality) { std::cerr << "BMP compression not supported" << std::endl; }
+void FBmpImageWrapper::Compress(int quality) { LogMessage(ELogLevel::Error, "BMP compression not supported。"); }
 
 void FBmpImageWrapper::Uncompress(const ERGBFormat inFormat, const int inBitDepth) {
     const uint8_t* buffer = compressedData.data();
@@ -37,7 +37,7 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat inFormat, const int in
     }
 
     if (bmhdr->biCompression != BCBI_RGB && bmhdr->biCompression != BCBI_BITFIELDS) {
-        std::cerr << "RLE compression of BMP images not supported" << std::endl;
+        LogMessage(ELogLevel::Error, "RLE compression of BMP images not supported.");
         return;
     }
 
@@ -157,7 +157,7 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat inFormat, const int in
                 const FBitmapInfoHeaderV4* bmhdrV4 = (FBitmapInfoHeaderV4*)(Buffer + sizeof(FBitmapFileHeader));
 
                 if (bmhdrV4->biCSType != (uint32_t)EBitmapCSType::BCST_LCS_sRGB && bmhdrV4->biCSType != (uint32_t)EBitmapCSType::BCST_LCS_WINDOWS_COLOR_SPACE) {
-                    std::cerr << "BMP uses an unsupported custom color space definition, sRGB color space will be used instead." << std::endl;
+                    LogMessage(ELogLevel::Error, "BMP uses an unsupported custom color space definition, sRGB color space will be used instead.");
                 }
             }
 
@@ -189,12 +189,14 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat inFormat, const int in
                 srcPtr += srcPtrDiff;
             }
         } else {
-            std::cerr << "BMP uses an unsupported compression format " << bmhdr->biCompression << std::endl;
+            std::string error = "BMP uses an unsupported compression format " + std::to_string(bmhdr->biCompression) + ".";
+            LogMessage(ELogLevel::Error, error.data());
         }
     } else if (bmhdr->biPlanes == 1 && bmhdr->biBitCount == 16) {
-        std::cerr << "BMP 16 bit format no longer supported. Use terrain tools for importing/exporting heightmaps." << std::endl;
+        LogMessage(ELogLevel::Error, "BMP 16 bit format no longer supported. Use terrain tools for importing/exporting heightmaps.");
     } else {
-        std::cerr << "BMP uses an unsupported format (" << bmhdr->biPlanes << "/" << bmhdr->biBitCount << ")" << std::endl;
+        std::string error = "BMP uses an unsupported format (" + std::to_string(bmhdr->biPlanes) + "/" + std::to_string(bmhdr->biBitCount) + ").";
+        LogMessage(ELogLevel::Error, error.data());
     }
 }
 
@@ -209,7 +211,7 @@ bool FBmpImageWrapper::LoadBMPHeader() {
     const FBitmapFileHeader* bmf = (FBitmapFileHeader*)(compressedData.data() + 0);
     if ((compressedData.size() >= sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader)) && compressedData.data()[0] == 'B' && compressedData.data()[1] == 'M') {
         if (bmhdr->biCompression != BCBI_RGB && bmhdr->biCompression != BCBI_BITFIELDS) {
-            std::cerr << "RLE compression of BMP images not supported" << std::endl;
+            LogMessage(ELogLevel::Error, "RLE compression of BMP images not supported.");
             return false;
         }
 
@@ -224,9 +226,10 @@ bool FBmpImageWrapper::LoadBMPHeader() {
         }
 
         if (bmhdr->biPlanes == 1 && bmhdr->biBitCount == 16) {
-            std::cerr << "BMP 16 bit format no longer supported. Use terrain tools for importing/exporting heightmaps." << std::endl;
+            LogMessage(ELogLevel::Error, "BMP 16 bit format no longer supported. Use terrain tools for importing/exporting heightmaps.");
         } else {
-            std::cerr << "BMP uses an unsupported format (" << bmhdr->biPlanes << "/" << bmhdr->biBitCount << ")" << std::endl;
+            std::string error = "BMP uses an unsupported format (" + std::to_string(bmhdr->biPlanes) + "/" + std::to_string(bmhdr->biBitCount) + ")";
+            LogMessage(ELogLevel::Error, error.data());
         }
     }
 
@@ -237,7 +240,7 @@ bool FBmpImageWrapper::LoadBMPInfoHeader() {
     const FBitmapInfoHeader* bmhdr = (FBitmapInfoHeader*)compressedData.data();
 
     if (bmhdr->biCompression != BCBI_RGB && bmhdr->biCompression != BCBI_BITFIELDS) {
-        std::cerr << "RLE compression of BMP images not supported" << std::endl;
+        LogMessage(ELogLevel::Error, "RLE compression of BMP images not supported.");
         return false;
     }
 
@@ -252,9 +255,10 @@ bool FBmpImageWrapper::LoadBMPInfoHeader() {
     }
 
     if (bmhdr->biPlanes == 1 && bmhdr->biBitCount == 16) {
-        std::cerr << "BMP 16 bit format no longer supported. Use terrain tools for importing/exporting heightmaps." << std::endl;
+        LogMessage(ELogLevel::Error, "BMP 16 bit format no longer supported. Use terrain tools for importing/exporting heightmaps.");
     } else {
-        std::cerr << "BMP uses an unsupported format (" << bmhdr->biPlanes << "/" << bmhdr->biBitCount << ")" << std::endl;
+        std::string error = "BMP uses an unsupported format (" + std::to_string(bmhdr->biPlanes) + "/" + std::to_string(bmhdr->biBitCount) + ").";
+        LogMessage(ELogLevel::Error, error.data());
     }
 
     return false;

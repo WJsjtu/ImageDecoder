@@ -6,7 +6,8 @@ bool IImageWrapper::GetRaw(const ERGBFormat inFormat, int inBitDepth, std::vecto
     std::vector<uint8_t> tmpRawData;
     if (GetRaw(inFormat, inBitDepth, tmpRawData)) {
         if (tmpRawData.size() != tmpRawData.size()) {
-            std::cerr << "Tried to get " << GetWidth() << "x" << GetHeight() << " " << inBitDepth << "bpp image with format " << static_cast<int8_t>(inFormat) << " into 32-bit TArray (%" << tmpRawData.size() << " bytes)" << std::endl;
+            std::string error = "Tried to get " + std::to_string(GetWidth()) + "x" + std::to_string(GetHeight()) + " " + std::to_string(inBitDepth) + "bpp image with format " + std::to_string(static_cast<int8_t>(inFormat)) + " into 32-bit TArray (%" + std::to_string(tmpRawData.size()) + " bytes).";
+            LogMessage(ELogLevel::Error, error.data());
             return false;
         }
         // todo check

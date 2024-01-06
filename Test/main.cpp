@@ -24,9 +24,9 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     // declaration of function pointer
-    bool(__cdecl * CreatePixelDataFunc)(ImageDecoder::EImageFormat, const uint8_t*, uint32_t, ImageDecoder::ImageInfo&, ImageDecoder::ImagePixelData*&);
+    bool(__cdecl * CreatePixelDataFunc)(ImageDecoder::EImageFormat, const char*, ImageDecoder::ImageInfo&, ImageDecoder::ImagePixelData*&);
     void(__cdecl * ReleasePixelDataFunc)(ImageDecoder::ImagePixelData*&);
-    auto CreatePixelDataFuncPtr = (bool*(__cdecl*)(ImageDecoder::EImageFormat, const uint8_t*, uint32_t, ImageDecoder::ImageInfo&, ImageDecoder::ImagePixelData*&))GetProcAddress(DllHandle, (LPCSTR) "CreatePixelData");
+    auto CreatePixelDataFuncPtr = (bool*(__cdecl*)(ImageDecoder::EImageFormat, const char*, ImageDecoder::ImageInfo&, ImageDecoder::ImagePixelData*&))GetProcAddress(DllHandle, (LPCSTR) "CreatePixelDataFromFile");
     auto ReleasePixelDataFuncPtr = (void(__cdecl*)(ImageDecoder::ImagePixelData*&))GetProcAddress(DllHandle, (LPCSTR) "ReleasePixelData");
     if (!CreatePixelDataFuncPtr || !ReleasePixelDataFuncPtr) {
         return -1;
@@ -35,18 +35,6 @@ int main(int argc, char* argv[]) {
         return -1;
     }
     std::string filePath = argv[1];
-    std::vector<uint8_t> dataBinary;
-    std::ifstream fileStream(filePath, std::ios_base::in | std::ios::binary);
-    if (fileStream) {
-        fileStream.unsetf(std::ios::skipws);
-        fileStream.seekg(0, std::ios::end);
-        dataBinary.resize(static_cast<size_t>(fileStream.tellg()));
-        fileStream.seekg(0, std::ios::beg);
-        fileStream.read(reinterpret_cast<char*>(dataBinary.data()), dataBinary.size());
-        dataBinary.resize(static_cast<size_t>(fileStream.gcount()));
-    } else {
-        return -1;
-    }
     std::string fileType = GetFileExtension(filePath.data());
     ImageDecoder::EImageFormat format = ImageDecoder::EImageFormat::Invalid;
     if (fileType == ".png") {
@@ -69,7 +57,7 @@ int main(int argc, char* argv[]) {
     }
     ImageDecoder::ImagePixelData* pixel_data;
     ImageDecoder::ImageInfo info;
-    if (!CreatePixelDataFuncPtr(format, dataBinary.data(), dataBinary.size(), info, pixel_data)) {
+    if (!CreatePixelDataFuncPtr(format, filePath.data(), info, pixel_data)) {
         return -1;
     }
 

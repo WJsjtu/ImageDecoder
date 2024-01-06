@@ -3,6 +3,7 @@
 #include "Wrapper/BmpImageSupport.h"
 #include "Wrapper/Formats/BmpImageWrapper.h"
 #include "Wrapper/Formats/PngImageWrapper.h"
+#include "Utils/Utils.h"
 
 namespace ImageDecoder {
 #pragma pack(push, 1)
@@ -53,7 +54,7 @@ FIcoImageWrapper::FIcoImageWrapper() : FImageWrapperBase() {}
 /* FImageWrapper interface
  *****************************************************************************/
 
-void FIcoImageWrapper::Compress(int quality) { std::cerr << "ICO compression not supported"; }
+void FIcoImageWrapper::Compress(int quality) { LogMessage(ELogLevel::Error, "ICO compression not supported."); }
 
 void FIcoImageWrapper::Uncompress(const ERGBFormat inFormat, const int inBitDepth) {
     const uint8_t* buffer = compressedData.data();

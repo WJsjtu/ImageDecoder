@@ -312,7 +312,7 @@ void FPngImageWrapper::UncompressPNGData(const ERGBFormat inFormat, const int in
          *	an unhandled exception upon a CRC error. This code
          *	catches our custom exception thrown in user_error_fn.
          */
-        std::cerr << e.errorText << std::endl;
+        LogMessage(ELogLevel::Error, e.errorText.data());
     }
 
     rawFormat = inFormat;
@@ -398,7 +398,8 @@ void FPngImageWrapper::user_error_fn(png_structp png_ptr, png_const_charp error_
         std::string errorMsg = error_msg;
         ctx->SetError(errorMsg.c_str());
 
-        std::cerr << "PNG Error: " << errorMsg << std::endl;
+        std::string error = "PNG Error: " + errorMsg + ".";
+        LogMessage(ELogLevel::Error, error.data());
 
         /**
          *	libPNG has a known issue in version 1.5.2 causing
@@ -420,7 +421,10 @@ void FPngImageWrapper::user_error_fn(png_structp png_ptr, png_const_charp error_
 #endif
 }
 
-void FPngImageWrapper::user_warning_fn(png_structp png_ptr, png_const_charp warning_msg) { std::cerr << "PNG Warning: " << warning_msg << std::endl; }
+void FPngImageWrapper::user_warning_fn(png_structp png_ptr, png_const_charp warning_msg) {
+    std::string warning = "PNG Warning: " + std::string(warning_msg) + ".";
+    LogMessage(ELogLevel::Warning, warning.data());
+}
 
 void* FPngImageWrapper::user_malloc(png_structp /*png_ptr*/, png_size_t size) {
     Assert(size > 0);
